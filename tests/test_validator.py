@@ -62,5 +62,58 @@ class TestValidateSolution(unittest.TestCase):
             validate_solution(3, [(0, 0)], [0, 1, 2])
 
 
+
+class TestValidatorEdgeCases(unittest.TestCase):
+    def test_reject_non_integer_n(self):
+        for n in (3.0, "3", True):
+            with self.subTest(n=n):
+                with self.assertRaises(TypeError):
+                    validate_solution(n, [], [0, 1, 2])
+
+    def test_reject_non_integer_labeling_position(self):
+        for labeling in ([0, 1.0, 2], [0, True, 2]):
+            with self.subTest(labeling=labeling):
+                with self.assertRaises(TypeError):
+                    validate_solution(3, [], labeling)
+
+    def test_reject_negative_position(self):
+        with self.assertRaises(ValueError):
+            validate_solution(3, [], [-1, 1, 2])
+
+    def test_reject_position_out_of_range(self):
+        with self.assertRaises(ValueError):
+            validate_solution(3, [], [0, 1, 3])
+
+    def test_reject_non_integer_claimed_bandwidth(self):
+        for claimed in (1.5, "1", True):
+            with self.subTest(claimed=claimed):
+                with self.assertRaises(TypeError):
+                    validate_solution(
+                        3, [(0, 1)], [0, 1, 2],
+                        claimed_bandwidth=claimed,
+                    )
+
+    def test_accept_edge_generator(self):
+        edges = ((u, v) for u, v in [(0, 1), (1, 2)])
+
+        self.assertEqual(
+            validate_solution(3, edges, [0, 1, 2], 1),
+            1,
+        )
+
+    def test_reject_negative_vertex_id(self):
+        with self.assertRaises(ValueError):
+            validate_solution(3, [(-1, 1)], [0, 1, 2])
+
+    def test_reject_non_integer_vertex_id(self):
+        with self.assertRaises(TypeError):
+            validate_solution(3, [(0.5, 1)], [0, 1, 2])
+
+    def test_reject_malformed_edge(self):
+        with self.assertRaises(ValueError):
+            validate_solution(3, [(0,)], [0, 1, 2])
+
+
+
 if __name__ == "__main__":
     unittest.main()

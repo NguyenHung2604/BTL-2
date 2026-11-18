@@ -77,6 +77,9 @@ def is_feasible_at_threshold(
 
     edge_list = tuple(edges)
 
+    # Validate the graph before applying the maximum-threshold shortcut.
+    compute_bandwidth(n, edge_list, tuple(range(n)))
+
     if threshold >= n // 2:
         return True
 

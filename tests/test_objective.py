@@ -63,5 +63,66 @@ class TestComputeBandwidth(unittest.TestCase):
             compute_bandwidth(3, [(0, 3)], [0, 1, 2])
 
 
+class TestObjectiveEdgeCases(unittest.TestCase):
+    def test_reject_non_integer_n(self):
+        for n in (3.0, "3", True):
+            with self.subTest(n=n):
+                with self.assertRaises(TypeError):
+                    cyclic_distance(n, 0, 1)
+
+    def test_reject_negative_n(self):
+        with self.assertRaises(ValueError):
+            cyclic_distance(-3, 0, 1)
+
+    def test_reject_non_integer_positions(self):
+        for i, j in ((0.5, 1), (0, 1.5), (False, 1)):
+            with self.subTest(i=i, j=j):
+                with self.assertRaises(TypeError):
+                    cyclic_distance(5, i, j)
+
+    def test_reject_non_integer_labeling_position(self):
+        for labeling in ([0, 1.0, 2], [0, True, 2]):
+            with self.subTest(labeling=labeling):
+                with self.assertRaises(TypeError):
+                    compute_bandwidth(3, [], labeling)
+
+    def test_reject_out_of_range_labeling_position(self):
+        with self.assertRaises(ValueError):
+            compute_bandwidth(3, [], [0, 1, 3])
+
+    def test_reject_negative_vertex_id(self):
+        with self.assertRaises(ValueError):
+            compute_bandwidth(3, [(-1, 1)], [0, 1, 2])
+
+    def test_reject_non_integer_vertex_id(self):
+        with self.assertRaises(TypeError):
+            compute_bandwidth(3, [(0.5, 1)], [0, 1, 2])
+
+    def test_reject_boolean_vertex_id(self):
+        with self.assertRaises(TypeError):
+            compute_bandwidth(3, [(False, 1)], [0, 1, 2])
+
+    def test_reject_malformed_edge(self):
+        with self.assertRaises(ValueError):
+            compute_bandwidth(3, [(0,)], [0, 1, 2])
+
+        with self.assertRaises(ValueError):
+            compute_bandwidth(3, [(0, 1, 2)], [0, 1, 2])
+
+    def test_duplicate_edges_do_not_change_bandwidth(self):
+        edges = [(0, 1), (0, 1), (1, 2)]
+        labeling = [0, 1, 2]
+
+        self.assertEqual(compute_bandwidth(3, edges, labeling), 1)
+
+    def test_accept_edge_generator(self):
+        edges = ((u, v) for u, v in [(0, 1), (1, 2)])
+
+        self.assertEqual(
+            compute_bandwidth(3, edges, [0, 1, 2]),
+            1,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
