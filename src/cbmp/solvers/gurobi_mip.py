@@ -1,11 +1,15 @@
-
 """Gurobi MIP adapter for the Cyclic Bandwidth Minimization Problem."""
 
+import math
 from time import perf_counter
 from typing import Any, Dict, Optional
 
 from ..models.mip import MIPFormulation
 from ..validator import validate_solution
+
+
+class _BuildDeadlineExceeded(Exception):
+    """Internal signal used when the adapter's total wall-clock budget expires."""
 
 
 def _empty_result() -> Dict[str, Any]:
@@ -38,21 +42,35 @@ def solve_gurobi(
     """
     Solve a CBMP instance using Gurobi and the shared MIP formulation.
 
-    Returns a dictionary containing the solution, bounds, timing,
-    model statistics, and termination information.
+    ``time_limit`` is a total adapter wall-clock budget: model construction
+    and optimization both consume it. ``build_time`` and ``solve_time`` are
+    reported separately, while ``total_time`` includes cleanup.
     """
     total_start = perf_counter()
     result = _empty_result()
+    model = None
+    build_start = None
 
     if not isinstance(formulation, MIPFormulation):
         raise TypeError("formulation must be a MIPFormulation")
 
     if time_limit is not None:
-        if not isinstance(time_limit, (int, float)) or time_limit <= 0:
-            raise ValueError("time_limit must be a positive number")
+        if (
+            not isinstance(time_limit, (int, float))
+            or isinstance(time_limit, bool)
+            or not math.isfinite(float(time_limit))
+            or time_limit <= 0
+        ):
+            raise ValueError("time_limit must be a finite positive number")
 
     if not isinstance(threads, int) or isinstance(threads, bool) or threads < 1:
         raise ValueError("threads must be a positive integer")
+
+    deadline = None if time_limit is None else total_start + float(time_limit)
+
+    def check_deadline() -> None:
+        if deadline is not None and perf_counter() >= deadline:
+            raise _BuildDeadlineExceeded
 
     try:
         import gurobipy as gp
@@ -63,25 +81,17 @@ def solve_gurobi(
         )
 
         n = formulation.n
-
         build_start = perf_counter()
+        check_deadline()
 
         model = gp.Model("CBMP_Gurobi_MIP")
-
         model.Params.OutputFlag = int(output_flag)
         model.Params.Threads = threads
 
-        if time_limit is not None:
-            model.Params.TimeLimit = float(time_limit)
-
         # Binary assignment variables:
         # x[v, i] = 1 iff vertex v receives position i.
-        x = model.addVars(
-            n,
-            n,
-            vtype=GRB.BINARY,
-            name="x",
-        )
+        x = model.addVars(n, n, vtype=GRB.BINARY, name="x")
+        check_deadline()
 
         # Integer objective variable.
         K = model.addVar(
@@ -90,9 +100,11 @@ def solve_gurobi(
             ub=formulation.max_bandwidth,
             name="K",
         )
+        check_deadline()
 
         # Each vertex receives exactly one position.
         for v in range(n):
+            check_deadline()
             model.addConstr(
                 gp.quicksum(x[v, i] for i in range(n)) == 1,
                 name=f"assign_vertex_{v}",
@@ -100,30 +112,41 @@ def solve_gurobi(
 
         # Each position is assigned to at most one vertex.
         for i in range(n):
+            check_deadline()
             model.addConstr(
                 gp.quicksum(x[v, i] for v in range(n)) <= 1,
                 name=f"assign_position_{i}",
             )
 
         # Enforce cyclic distance constraints for every graph edge.
-        for u, v, i, j, distance in formulation.iter_distance_constraints():
+        for index, (u, v, i, j, distance) in enumerate(
+            formulation.iter_distance_constraints()
+        ):
+            if index % 256 == 0:
+                check_deadline()
             model.addConstr(
                 K >= distance * (x[u, i] + x[v, j] - 1),
                 name=f"distance_{u}_{v}_{i}_{j}",
             )
 
+        check_deadline()
         model.setObjective(K, GRB.MINIMIZE)
-
         model.update()
-
         result["build_time"] = perf_counter() - build_start
         result["num_variables"] = model.NumVars
         result["num_constraints"] = model.NumConstrs
 
-        # Optimize.
-        model.optimize()
+        # Pass only the budget remaining after model construction.
+        check_deadline()
+        if deadline is not None:
+            remaining_time = deadline - perf_counter()
+            if remaining_time <= 0:
+                raise _BuildDeadlineExceeded
+            model.Params.TimeLimit = remaining_time
 
-        result["solve_time"] = float(model.Runtime)
+        solve_start = perf_counter()
+        model.optimize()
+        result["solve_time"] = perf_counter() - solve_start
         result["solver_status"] = int(model.Status)
 
         status_names = {
@@ -136,11 +159,7 @@ def solve_gurobi(
             GRB.NUMERIC: "NUMERIC",
             GRB.SUBOPTIMAL: "SUBOPTIMAL",
         }
-
-        result["solver_status_name"] = status_names.get(
-            model.Status,
-            "OTHER",
-        )
+        result["solver_status_name"] = status_names.get(model.Status, "OTHER")
 
         if model.Status == GRB.TIME_LIMIT:
             result["termination_reason"] = "timeout"
@@ -150,29 +169,23 @@ def solve_gurobi(
             result["termination_reason"] = "completed"
 
         if model.SolCount > 0:
-            # Decode the assignment variables.
             labeling = []
-
             for v in range(n):
                 assigned_positions = [
                     i for i in range(n) if x[v, i].X > 0.5
                 ]
-
                 if len(assigned_positions) != 1:
                     raise RuntimeError(
                         f"Cannot decode vertex {v}: "
                         f"found {len(assigned_positions)} assigned positions"
                     )
-
                 labeling.append(assigned_positions[0])
 
-            # Independently validate the solution.
             actual_bandwidth = validate_solution(
                 n,
                 formulation.edges,
                 labeling,
             )
-
             result["labeling"] = labeling
             result["incumbent"] = actual_bandwidth
             result["solver_objective"] = float(model.ObjVal)
@@ -188,7 +201,16 @@ def solve_gurobi(
             result["status"] = "OPTIMAL"
             result["optimality_proven"] = True
 
-        model.dispose()
+    except _BuildDeadlineExceeded:
+        result["termination_reason"] = "timeout"
+        if build_start is not None:
+            result["build_time"] = perf_counter() - build_start
+        if model is not None:
+            try:
+                result["num_variables"] = model.NumVars
+                result["num_constraints"] = model.NumConstrs
+            except Exception:
+                pass
 
     except ModuleNotFoundError as exc:
         result["termination_reason"] = "error"
@@ -199,18 +221,19 @@ def solve_gurobi(
         result["termination_reason"] = "error"
         result["error_type"] = type(exc).__name__
         result["error_message"] = str(exc)
-
-        # Detect license failures separately from algorithm timeouts.
         message = str(exc).lower()
         error_code = getattr(exc, "errno", None)
-
-        if (
-            "license" in message
-            or error_code == 10009
-        ):
+        if "license" in message or error_code == 10009:
             result["termination_reason"] = "license_error"
 
     finally:
+        if build_start is not None and result["build_time"] == 0.0:
+            result["build_time"] = perf_counter() - build_start
+        if model is not None:
+            try:
+                model.dispose()
+            except Exception:
+                pass
         result["total_time"] = perf_counter() - total_start
 
     return result
