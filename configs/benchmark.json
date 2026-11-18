@@ -1,0 +1,12 @@
+{
+  "manifest": "data/manifest.csv",
+  "methods": [
+    "sat_pairwise",
+    "sat_order",
+    "cp_sat",
+    "cplex_cp",
+    "cplex_mip",
+    "gurobi_mip"
+  ],
+  "time_limit_seconds": 300
+}
