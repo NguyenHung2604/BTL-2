@@ -5,7 +5,9 @@ from time import perf_counter
 from typing import Any, Dict, Optional
 
 from ..models.mip import MIPFormulation
-from ..validator import validate_solution
+from ..graph import Graph
+from ..result import SolveResult
+from ..validator import validated_bandwidth
 
 
 class _BuildDeadlineExceeded(Exception):
@@ -48,6 +50,7 @@ def solve_gurobi(
     """
     total_start = perf_counter()
     result = _empty_result()
+    env = None
     model = None
     build_start = None
 
@@ -84,7 +87,10 @@ def solve_gurobi(
         build_start = perf_counter()
         check_deadline()
 
-        model = gp.Model("CBMP_Gurobi_MIP")
+        env = gp.Env(empty=True)
+        env.setParam("OutputFlag", int(output_flag))
+        env.start()
+        model = gp.Model("CBMP_Gurobi_MIP", env=env)
         model.Params.OutputFlag = int(output_flag)
         model.Params.Threads = threads
 
@@ -181,7 +187,7 @@ def solve_gurobi(
                     )
                 labeling.append(assigned_positions[0])
 
-            actual_bandwidth = validate_solution(
+            actual_bandwidth = validated_bandwidth(
                 n,
                 formulation.edges,
                 labeling,
@@ -223,7 +229,7 @@ def solve_gurobi(
         result["error_message"] = str(exc)
         message = str(exc).lower()
         error_code = getattr(exc, "errno", None)
-        if "license" in message or error_code == 10009:
+        if "license" in message or error_code in (10009, 10010):
             result["termination_reason"] = "license_error"
 
     finally:
@@ -234,6 +240,21 @@ def solve_gurobi(
                 model.dispose()
             except Exception:
                 pass
+        if env is not None:
+            env.dispose()
         result["total_time"] = perf_counter() - total_start
 
     return result
+
+
+def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
+    """Run gurobi MIP through the Graph-based CLI interface."""
+    if not math.isfinite(time_limit_seconds) or time_limit_seconds < 0:
+        raise ValueError("Expected a finite nonnegative budget")
+    if time_limit_seconds == 0:
+        return SolveResult(graph.name, "gurobi_mip", "NO_SOLUTION", "timeout", 0)
+    record = solve_gurobi(MIPFormulation(graph.n, graph.edges), time_limit=time_limit_seconds)
+    bound = record["lower_bound"]
+    return SolveResult(graph.name, record["method"], record["status"], record["termination_reason"],
+                       record["total_time"], record["labeling"], record["incumbent"],
+                       None if bound is None else math.ceil(bound - 1e-6))

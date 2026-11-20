@@ -4,9 +4,9 @@
 import importlib.util
 import unittest
 
-from src.cbmp.models.mip import MIPFormulation
-from src.cbmp.solvers.cplex_mip import solve_cplex
-from src.cbmp.validator import validate_solution
+from cbmp.models.mip import MIPFormulation
+from cbmp.solvers.cplex_mip import solve_cplex
+from cbmp.validator import validated_bandwidth
 
 
 HAS_CPLEX = importlib.util.find_spec("cplex") is not None
@@ -46,7 +46,7 @@ class TestCplexMIP(unittest.TestCase):
             places=5,
         )
 
-        actual_bandwidth = validate_solution(
+        actual_bandwidth = validated_bandwidth(
             n,
             edges,
             result["labeling"],

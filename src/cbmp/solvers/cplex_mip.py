@@ -5,7 +5,9 @@ from time import perf_counter
 from typing import Any, Dict, Optional
 
 from ..models.mip import MIPFormulation
-from ..validator import validate_solution
+from ..graph import Graph
+from ..result import SolveResult
+from ..validator import validated_bandwidth
 
 
 class _BuildDeadlineExceeded(Exception):
@@ -209,7 +211,7 @@ def solve_cplex(
                     )
                 labeling.append(assigned_positions[0])
 
-            actual_bandwidth = validate_solution(
+            actual_bandwidth = validated_bandwidth(
                 n,
                 formulation.edges,
                 labeling,
@@ -273,3 +275,16 @@ def solve_cplex(
         result["total_time"] = perf_counter() - total_start
 
     return result
+
+
+def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
+    """Run cplex MIP through the Graph-based CLI interface."""
+    if not math.isfinite(time_limit_seconds) or time_limit_seconds < 0:
+        raise ValueError("Expected a finite nonnegative budget")
+    if time_limit_seconds == 0:
+        return SolveResult(graph.name, "cplex_mip", "NO_SOLUTION", "timeout", 0)
+    record = solve_cplex(MIPFormulation(graph.n, graph.edges), time_limit=time_limit_seconds)
+    bound = record["lower_bound"]
+    return SolveResult(graph.name, record["method"], record["status"], record["termination_reason"],
+                       record["total_time"], record["labeling"], record["incumbent"],
+                       None if bound is None else math.ceil(bound - 1e-6))

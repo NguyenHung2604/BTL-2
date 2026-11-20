@@ -1,43 +1,81 @@
-"""Objective for vertex-to-position labelings."""
-
-from collections.abc import Sequence
+"""Objective functions for the Cyclic Bandwidth Minimization Problem."""
 
 from .graph import Graph
+from typing import Iterable, Sequence, Tuple
+
+
+Edge = Tuple[int, int]
 
 
 def cyclic_distance(i: int, j: int, n: int) -> int:
-    """Return the shorter distance between positions i and j on an n-cycle."""
+    """Return the shortest distance between positions i and j on a cycle C_n."""
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise TypeError("n must be an integer")
+    if n <= 0:
+        raise ValueError("n must be positive")
+
+    if not isinstance(i, int) or isinstance(i, bool):
+        raise TypeError("Positions must be integers")
+    if not isinstance(j, int) or isinstance(j, bool):
+        raise TypeError("Positions must be integers")
+
     if not (0 <= i < n and 0 <= j < n):
-        raise ValueError("Positions must belong to the cycle")
-    delta = abs(i - j)
-    return min(delta, n - delta)
+        raise ValueError("Positions must belong to range(0, n)")
 
-
-def bandwidth(graph: Graph, labels: Sequence[int]) -> int:
-    """Compute the largest edge distance for a valid labels[v] permutation."""
-    return max(
-        (cyclic_distance(labels[u], labels[v], graph.n) for u, v in graph.edges),
-        default=0,
-    )
+    return min(abs(i - j), n - abs(i - j))
 
 
 def compute_bandwidth(
     n: int,
-    edges: Sequence[tuple[int, int]],
+    edges: Iterable[Edge],
     labeling: Sequence[int],
 ) -> int:
-    """Compatibility wrapper for the branch's existing objective callers."""
-    if n <= 0:
-        raise ValueError("n must be positive")
-    normalized_edges = []
+    """
+    Compute the cyclic bandwidth of a labeling.
+
+    labeling[v] is the position assigned to vertex v.
+    The labeling is expected to contain exactly n positions in range(0, n).
+    Permutation validity is checked separately by the validator.
+    """
+    if not isinstance(n, int) or isinstance(n, bool):
+        raise TypeError("n must be an integer")
+    if n < 0:
+        raise ValueError("n must be non-negative")
+
+    if len(labeling) != n:
+        raise ValueError("Labeling must contain exactly n positions")
+
+    for position in labeling:
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError("Every position must be an integer")
+        if not (0 <= position < n):
+            raise ValueError("Every position must belong to range(0, n)")
+
+    bandwidth = 0
+
     for edge in edges:
         if len(edge) != 2:
             raise ValueError("Each edge must contain two vertices")
+
         u, v = edge
+
+        if not isinstance(u, int) or isinstance(u, bool):
+            raise TypeError("Vertex IDs must be integers")
+        if not isinstance(v, int) or isinstance(v, bool):
+            raise TypeError("Vertex IDs must be integers")
+
         if not (0 <= u < n and 0 <= v < n):
             raise ValueError(f"Invalid edge: {edge}")
         if u == v:
             raise ValueError("Self-loops are not supported")
-        normalized_edges.append((min(u, v), max(u, v)))
-    graph = Graph("compat", n, tuple(sorted(set(normalized_edges))))
-    return bandwidth(graph, labeling)
+
+        distance = cyclic_distance(labeling[u], labeling[v], n)
+        bandwidth = max(bandwidth, distance)
+
+    # An edgeless graph has bandwidth 0.
+    return bandwidth
+
+
+def bandwidth(graph: Graph, labels: Sequence[int]) -> int:
+    """Evaluate a vertex-to-position labeling."""
+    return compute_bandwidth(graph.n, graph.edges, labels)

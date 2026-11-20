@@ -1,4 +1,3 @@
-
 """Brute-force reference solver for small CBMP instances.
 
 Intended for validation on small graphs (typically n <= 8).
@@ -7,22 +6,11 @@ Intended for validation on small graphs (typically n <= 8).
 from itertools import permutations
 from typing import Iterable, Optional, Sequence, Tuple
 
-from src.cbmp.objective import compute_bandwidth
-from src.cbmp.graph import Graph
-from src.cbmp.objective import bandwidth
+from cbmp.graph import Graph
+from cbmp.objective import compute_bandwidth
 
 
 Edge = Tuple[int, int]
-
-
-def optimum(graph: Graph) -> int:
-    """Main-branch Graph API."""
-    if graph.n > 8:
-        raise ValueError("Brute-force oracle supports n <= 8")
-    return min(
-        bandwidth(graph, labeling)
-        for labeling in permutations(graph.vertices)
-    )
 
 
 def brute_force_optimum(
@@ -37,8 +25,8 @@ def brute_force_optimum(
     """
     if not isinstance(n, int) or isinstance(n, bool):
         raise TypeError("n must be an integer")
-    if n <= 0:
-        raise ValueError("n must be positive")
+    if n < 0:
+        raise ValueError("n must be non-negative")
     if n > 8:
         raise ValueError("Brute force is restricted to n <= 8")
 
@@ -82,8 +70,8 @@ def is_feasible_at_threshold(
 
     if not isinstance(n, int) or isinstance(n, bool):
         raise TypeError("n must be an integer")
-    if n <= 0:
-        raise ValueError("n must be positive")
+    if n < 0:
+        raise ValueError("n must be non-negative")
     if n > 8:
         raise ValueError("Brute force is restricted to n <= 8")
 
@@ -100,3 +88,8 @@ def is_feasible_at_threshold(
             return True
 
     return False
+
+
+def optimum(graph: Graph) -> int:
+    """Return the oracle objective for a Graph."""
+    return brute_force_optimum(graph.n, graph.edges)[0]
