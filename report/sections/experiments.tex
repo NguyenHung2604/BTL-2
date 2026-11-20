@@ -58,9 +58,37 @@ run has a 60-second end-to-end wall-clock budget, one solver thread, and seed
 zero. The configured preflight limit is one million estimated constraints.
 The BP 400 MIP model is estimated to require 2,712,872,904 constraints and is
 therefore rejected before model construction. This outcome is recorded as a
-preflight size error, not as a timeout or a solver failure. The JGL009 and
-BCSSTK01 runs remain eligible for actual solver execution under the pilot
-budget.
+preflight size error, not as a timeout or a solver failure. On commit
+\texttt{71d4baf}, the actual pilot attempted both smaller instances with
+Gurobi 14.0.0 and CPLEX 22.2.0.0. Both backends rejected JGL009 and BCSSTK01
+because the installed licenses were size-limited: Gurobi reported
+\texttt{Model too large for size-limited license}, while CPLEX returned error
+1016 (\texttt{Community Edition. Problem size limits exceeded}). These are
+license-edition limits, not evidence of infeasibility, timeout, or a defect in
+the shared formulation. The raw JSONL log preserves the exact messages.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Actual MIP pilot outcomes on commit \texttt{71d4baf}.}
+\label{tab:mip-pilot}
+\begin{tabular}{lrrll}
+\hline
+Instance & Variables & Constraints & Gurobi 14.0.0 & CPLEX 22.2.0.0 \\
+\hline
+JGL009 & 82 & 2,610 & Size-limited license & Community error 1016 \\
+BCSSTK01 & 2,305 & 405,600 & Size-limited license & Community error 1016 \\
+BP 400 & -- & 2,712,872,904 & Preflight guard & Preflight guard \\
+\hline
+\end{tabular}
+\end{table}
+
+The repository also contains toy smoke records for \texttt{path5} and
+\texttt{cycle6}, where both MIP backends report optimal solutions. However,
+those records identify commit \texttt{778db217}, not the current
+\texttt{71d4baf} snapshot; they are retained as historical smoke evidence and
+must be regenerated at the current commit before being used as its integration
+acceptance evidence.
 
 \subsection{Main benchmark protocol}
 The planned main-benchmark budget is 300 seconds per instance and method,

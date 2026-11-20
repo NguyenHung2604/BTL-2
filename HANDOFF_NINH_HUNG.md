@@ -1,6 +1,5 @@
 # Handoff — phần dữ liệu, MIP và benchmark của Hưng
-
-## Đã hoàn thiện trong bản này
+## Đã hoàn thiện trong bản commit này
 
 - Chuẩn hóa tập benchmark đang có bằng một `data/manifest.csv` gồm JGL009, BCSSTK01 và BP 400.
 - Ghi nguồn, raw SHA-256, graph-file SHA-256, normalized-graph SHA-256, `n`, `m`, bậc lớn nhất và số đỉnh cô lập.
@@ -23,28 +22,35 @@
 
 `m` là số cạnh vô hướng duy nhất sau chuẩn hóa, không phải số nonzero trong ma trận gốc. JGL009 trong Table A.2 báo 50 entries, nhưng đồ thị chuẩn hóa của repo có 32 cạnh. Chỉ so với paper khi đã đối chiếu cùng quy ước.
 
-## Pilot dry-run đã kiểm tra
+## Pilot dry-run và solver run thực tế
 
-- JGL009: MIP 82 biến, khoảng 2,610 ràng buộc.
-- BCSSTK01: MIP 2,305 biến, khoảng 405,600 ràng buộc.
-- BP 400: MIP 2,712,872,904 ràng buộc, bị chặn trước khi dựng model.
-- Với SAT, cận trên clause của BP 400 cũng vượt guard; runner không khởi chạy SAT.
+- JGL009: MIP 82 biến, 2,610 ràng buộc.
+- BCSSTK01: MIP 2,305 biến, 405,600 ràng buộc.
+- BP 400: MIP 2,712,872,904 ràng buộc, bị chặn trước khi dựng model bởi `max_constraints=1,000,000`.
+- Pilot thật tại commit `71d4baf`: Gurobi 14.0.0 và CPLEX 22.2.0.0 đều đã được gọi trên JGL009 và BCSSTK01, nhưng cả hai trả `license_error`.
+  - Gurobi: `Model too large for size-limited license`.
+  - CPLEX: Error 1016, `Community Edition. Problem size limits exceeded`.
+  - Đây là giới hạn edition/license, không phải timeout, infeasible hay bằng chứng mô hình sai.
+- Các dòng BP 400 có `error_type=preflight_model_size_limit`; solver chưa được khởi chạy.
+- `results/smoke.jsonl` có kết quả OPTIMAL cho `path5` và `cycle6` trên cả hai MIP, nhưng các record mang `commit_hash=778db217`, không phải commit hiện tại `71d4baf`. Cần chạy lại smoke ở commit hiện tại trước khi dùng làm bằng chứng nghiệm thu của snapshot này.
 
 ## Kiểm thử trong môi trường rà soát
 
 - `compileall`: thành công.
-- Các test được chạy trong môi trường rà soát: 83 passed, 22 subtests passed.
-- 8 test MIP bị skip do môi trường rà soát không có Gurobi/CPLEX.
-- Không thể thu thập hai module SAT trong môi trường rà soát do thiếu `python-sat`; máy của Hưng trước đó đã chạy 101 test pass trước các thay đổi này. Cần chạy lại full suite trên máy có `python-sat`.
-- Dry-run manifest/pilot/main config: thành công.
-- Logic biểu đồ đã kiểm tra với shim Matplotlib/Seaborn; package `cnsplots` thật chưa được cài trong môi trường rà soát.
-- Chưa chạy solver pilot thật; không có số liệu runtime hay kết luận hiệu năng trong bản này.
+- Các test không phụ thuộc Python-SAT được chạy lại: 83 passed, 22 subtests passed.
+- Full suite trong môi trường rà soát không thu thập được hai module SAT vì môi trường này thiếu `python-sat`; trên máy Windows của Hưng đã có lần chạy full suite 113 passed, 22 subtests passed.
+- Manifest benchmark và excluded: hợp lệ (3 benchmark, 1 excluded).
+- MIP pilot dry-run và main benchmark dry-run: thành công; main config có 12 lượt cho 4 phương pháp hiện kích hoạt, CP-SAT và CPLEX CP vẫn đang là phương pháp pending.
+- Plot `--check-only`: sinh bảng CSV cho 6 record pilot và 3 dataset.
+- Package `cnsplots` chưa được cài/chạy thật trong môi trường rà soát. Đã bổ sung extra `plots` vào `pyproject.toml` để lệnh cài đặt trong handoff hoạt động.
+- Bổ sung sơ đồ CBMP tĩnh tại `report/figures/cbmp_circular_layout.pdf` để báo cáo không thiếu hình. `pdflatex` biên dịch qua được phần nội dung (4 trang); chưa xác nhận bibliography hoàn chỉnh vì `bibtex` trong môi trường rà soát bị lỗi quyền thực thi.
 
 ## Việc cần nhóm trưởng/Đức tiếp tục
 
 - CP-SAT và CPLEX CP hiện vẫn là adapter `NotImplementedError`; cổng ngày 7 cho đủ sáu phương pháp chưa đạt. Không chạy batch chính thức sáu phương pháp trước khi hai adapter này hoàn thiện và qua kiểm chứng nhỏ.
 - Sau khi cài `cnsplots`, chạy script sinh hình từ JSONL thật.
 - Mở rộng manifest từ candidate list chỉ sau khi tải raw matrix, chuẩn hóa, kiểm checksum và xác nhận đúng đồ thị.
+- Nhờ Hùng/Đức chạy `mip_smoke.json` trên máy có solver; sau đó chạy `mip_pilot.json` để xác nhận license đủ quyền cho model Harwell–Boeing (toy smoke có thể chạy được cả với license giới hạn).
 
 ## Lệnh trên máy Windows
 
@@ -52,9 +58,10 @@
 py -3.14 -m pip install -e ".[plots]"
 py -3.14 -m pytest tests -v
 py -3.14 scripts\validate_manifest.py
+py -3.14 scripts\benchmark.py --config configs\mip_smoke.json --no-resume
 py -3.14 scripts\benchmark.py --config configs\mip_pilot.json --dry-run
 py -3.14 scripts\benchmark.py --config configs\mip_pilot.json --no-resume
 py -3.14 scripts\plot_results.py --input results\mip_pilot.jsonl --manifest data\manifest.csv --output-dir results\mip_pilot_summary
 ```
 
-Chỉ chạy `configs/benchmark.json` sau khi nhóm xác nhận đủ sáu phương pháp và cổng tích hợp đã đạt.
+`mip_smoke.json` chỉ xác nhận adapter hoạt động trên toy; `mip_pilot.json` mới kiểm tra license có chạy được mô hình Harwell–Boeing hay không. Chỉ chạy `configs/benchmark.json` sau khi nhóm xác nhận đủ sáu phương pháp và cổng tích hợp đã đạt.

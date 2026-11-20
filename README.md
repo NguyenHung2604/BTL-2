@@ -46,8 +46,20 @@ Hai encoding SAT, CPLEX MIP và Gurobi MIP chạy được qua CLI và benchmark
 
 ~~~powershell
 .\.venv\Scripts\python scripts/benchmark.py --config configs/smoke.json
+.\.venv\Scripts\python scripts/benchmark.py --config configs/mip_smoke.json --no-resume
 .\.venv\Scripts\python scripts/benchmark.py --config configs/benchmark.json --dry-run
 .\.venv\Scripts\python scripts/benchmark.py --config configs/mip_pilot.json --dry-run
 ~~~
 
-Smoke dùng hai đồ thị toy. Benchmark chung đọc manifest. Pilot MIP giữ bộ ma trận Harwell–Boeing gốc của Hưng.
+`mip_smoke.json` kiểm tra riêng hai adapter MIP trên hai đồ thị toy; `mip_pilot.json` kiểm tra edition/license trên các ma trận Harwell–Boeing.
+
+## Sinh bảng và hình
+
+Cài thêm dependency hình bằng:
+
+~~~powershell
+.\.venv\Scripts\python -m pip install -e ".[plots]"
+.\.venv\Scripts\python scripts/plot_results.py --input results/mip_pilot.jsonl --manifest data/manifest.csv --output-dir results/mip_pilot_summary
+~~~
+
+Script giữ nguyên các trạng thái lỗi/timeout và chỉ vẽ so sánh khi log có đủ dữ liệu; `--check-only` chỉ sinh bảng CSV, không cần `cnsplots`.

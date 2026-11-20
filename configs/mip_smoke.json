@@ -1,0 +1,17 @@
+{
+  "description": "Day-7 MIP smoke test on toy graphs for checking both solver adapters before the Harwell-Boeing pilot.",
+  "instances": [
+    "data/toy/path5.json",
+    "data/toy/cycle6.json"
+  ],
+  "methods": [
+    "gurobi_mip",
+    "cplex_mip"
+  ],
+  "time_limit_seconds": 30,
+  "threads": 1,
+  "seed": 0,
+  "output": "results/mip_smoke.jsonl",
+  "resume": false,
+  "solver_output": false
+}
