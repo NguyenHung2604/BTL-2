@@ -1,1 +1,2 @@
 instance,source_url,raw_path,graph_path,n,m,max_degree,graph_sha256
+bcsstk01,https://math.nist.gov/pub/MatrixMarket2/Harwell-Boeing/bcsstruc1/bcsstk01.mtx.gz,data/benchmarks/harwell_boeing/raw/bcsstk01.mtx.gz,data/benchmarks/harwell_boeing/graphs/bcsstk01.json,48,176,11,7cdf6584283409f5650f70d1274c791156ae2a841fffa99000a33f86e866d753
