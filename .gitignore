@@ -1,17 +1,27 @@
-
-# Python cache
-__pycache__/
-*.py[cod]
-
-# Virtual environments
 .venv/
 venv/
-
-# IDE settings
-.vscode/
-
-# Test and coverage cache
+__pycache__/
+*.py[cod]
 .pytest_cache/
 .coverage
 htmlcov/
+*.egg-info/
+build/
+dist/
+.vscode/
 /results/
+*.lic
+*.license
+cplex.lic
+access.ilm
+*.aux
+*.bbl
+*.blg
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.spl
+*.abs

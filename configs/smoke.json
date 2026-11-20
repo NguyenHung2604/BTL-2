@@ -1,23 +1,15 @@
 {
-  "description": "Small synthetic smoke benchmark; safe for local solver checks.",
   "instances": [
-    {
-      "graph_id": "path5",
-      "n": 5,
-      "edges": [[0, 1], [1, 2], [2, 3], [3, 4]]
-    },
-    {
-      "graph_id": "cycle6",
-      "n": 6,
-      "edges": [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]]
-    }
+    "data/toy/cycle6.json",
+    "data/toy/path5.json"
   ],
-  "methods": ["gurobi_mip", "cplex_mip"],
-  "time_limit": 30,
-  "threads": 1,
-  "seed": 0,
-  "max_constraints": 100000,
-  "output": "results/smoke.jsonl",
-  "resume": true,
-  "solver_output": false
+  "methods": [
+    "sat_pairwise",
+    "sat_order",
+    "cp_sat",
+    "cplex_cp",
+    "cplex_mip",
+    "gurobi_mip"
+  ],
+  "time_limit_seconds": 10
 }

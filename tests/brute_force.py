@@ -8,9 +8,21 @@ from itertools import permutations
 from typing import Iterable, Optional, Sequence, Tuple
 
 from src.cbmp.objective import compute_bandwidth
+from src.cbmp.graph import Graph
+from src.cbmp.objective import bandwidth
 
 
 Edge = Tuple[int, int]
+
+
+def optimum(graph: Graph) -> int:
+    """Main-branch Graph API."""
+    if graph.n > 8:
+        raise ValueError("Brute-force oracle supports n <= 8")
+    return min(
+        bandwidth(graph, labeling)
+        for labeling in permutations(graph.vertices)
+    )
 
 
 def brute_force_optimum(
