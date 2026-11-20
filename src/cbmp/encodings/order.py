@@ -2,9 +2,15 @@
 
 from collections.abc import Sequence
 from itertools import combinations
+from typing import TypedDict
 
 from ..graph import Graph
 from ..objective import cyclic_distance
+
+
+class OrderMetadata(TypedDict):
+    n: int
+    var_map: dict[tuple[int, int], int]
 
 
 def threshold(v: int, t: int, n: int) -> int:
@@ -21,29 +27,35 @@ def different_from(v: int, i: int, n: int) -> list[int]:
     return literals
 
 
-def build(graph: Graph, k: int) -> tuple[list[list[int]], dict[str, int]]:
+def build(graph: Graph, k: int) -> tuple[list[list[int]], OrderMetadata]:
     """Monotone chains select one position. Forbid collisions and distant edge pairs."""
     n = graph.n
+    var_map = {(v, t): threshold(v, t, n) for v in graph.vertices for t in range(n - 1)}
+    metadata: OrderMetadata = {"n": n, "var_map": var_map}
+    if k < 0:
+        return [[]], metadata
     clauses = [
-        [-threshold(v, t, n), threshold(v, t + 1, n)]
+        [-var_map[v, t], var_map[v, t + 1]]
         for v in graph.vertices for t in range(n - 2)
     ]
     for u, v in combinations(graph.vertices, 2):
         for i in range(n):
             clauses.append(different_from(u, i, n) + different_from(v, i, n))
-    for u, v in graph.edges:
-        for i in range(n):
-            for j in range(n):
-                if cyclic_distance(i, j, n) > k:
-                    clauses.append(different_from(u, i, n) + different_from(v, j, n))
-    if k < 0:
-        clauses.append([])
-    return clauses, {"n": n}
+    if k < n // 2:
+        for u, v in graph.edges:
+            for i in range(n):
+                for j in range(n):
+                    if cyclic_distance(i, j, n) > k:
+                        clauses.append(different_from(u, i, n) + different_from(v, j, n))
+    return clauses, metadata
 
 
-def decode(model: Sequence[int], metadata: dict[str, int]) -> list[int]:
+def decode(model: Sequence[int], metadata: OrderMetadata | dict[str, int]) -> list[int]:
     """Return the first true threshold in each chain, or n-1 for an all-false chain."""
     n = metadata["n"]
     positive = {lit for lit in model if lit > 0}
-    return [next((t for t in range(n - 1) if threshold(v, t, n) in positive), n - 1)
+    var_map = metadata.get("var_map")
+    if var_map is None:  # Earlier build() results stored only n.
+        var_map = {(v, t): threshold(v, t, n) for v in range(n) for t in range(n - 1)}
+    return [next((t for t in range(n - 1) if var_map[v, t] in positive), n - 1)
             for v in range(n)]
