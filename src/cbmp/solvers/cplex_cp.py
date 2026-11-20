@@ -56,6 +56,7 @@ def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
   sol = mdl.solve(
       TimeLimit=max(0.01, float(time_limit_seconds)),
       trace_log=False,
+      # execfile="/home/barium/ibm/ILOG/CPLEX_Studio222/cpoptimizer/bin/x86-64_linux/cpoptimizer",
   )
   elapsed = time.perf_counter() - start
 
