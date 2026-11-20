@@ -3,10 +3,13 @@
   "methods": [
     "sat_pairwise",
     "sat_order",
-    "cp_sat",
-    "cplex_cp",
     "cplex_mip",
     "gurobi_mip"
   ],
-  "time_limit_seconds": 300
+  "time_limit_seconds": 300,
+  "planned_methods": [
+    "cp_sat",
+    "cplex_cp"
+  ],
+  "output": "results/benchmark.jsonl"
 }

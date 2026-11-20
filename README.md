@@ -42,4 +42,12 @@ foreach ($engine in 'cp_sat','cplex_cp','cplex_mip','gurobi_mip') {
 .\.venv\Scripts\python scripts/solve.py data/toy/cycle6.json --method gurobi_mip --time-limit-seconds 10
 ```
 
-Gurobi giải CBMP bằng mô hình gán nhị phân, tối thiểu hóa cận trên khoảng cách vòng trên các cạnh. CP-SAT, CPLEX CP và CPLEX MIP hiện có ví dụ kiểm tra engine. Adapter CBMP cho ba engine này, benchmark theo lô và biểu đồ cnsplots thuộc các ngày sau.
+Hai encoding SAT, CPLEX MIP và Gurobi MIP chạy được qua CLI và benchmark. CP-SAT và CPLEX CP hiện có ví dụ kiểm tra engine. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
+
+~~~powershell
+.\.venv\Scripts\python scripts/benchmark.py --config configs/smoke.json
+.\.venv\Scripts\python scripts/benchmark.py --config configs/benchmark.json --dry-run
+.\.venv\Scripts\python scripts/benchmark.py --config configs/mip_pilot.json --dry-run
+~~~
+
+Smoke dùng hai đồ thị toy. Benchmark chung đọc manifest. Pilot MIP giữ bộ ma trận Harwell–Boeing gốc của Hưng.

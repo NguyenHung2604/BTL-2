@@ -4,9 +4,9 @@
 import importlib.util
 import unittest
 
-from src.cbmp.models.mip import MIPFormulation
-from src.cbmp.solvers.gurobi_mip import solve_gurobi
-from src.cbmp.validator import validate_solution
+from cbmp.models.mip import MIPFormulation
+from cbmp.solvers.gurobi_mip import solve_gurobi
+from cbmp.validator import validated_bandwidth
 
 
 HAS_GUROBI = importlib.util.find_spec("gurobipy") is not None
@@ -40,7 +40,7 @@ class TestGurobiMIP(unittest.TestCase):
 
         self.assertIsNotNone(result["labeling"])
 
-        actual_bandwidth = validate_solution(
+        actual_bandwidth = validated_bandwidth(
             n,
             edges,
             result["labeling"],

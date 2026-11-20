@@ -5,13 +5,14 @@ Usage (from the repository root)::
     python scripts/benchmark.py --config configs/smoke.json
     python scripts/benchmark.py --config configs/benchmark.json
 
-The runner currently wires the implemented Gurobi and CPLEX MIP adapters.
+The runner supports both SAT encodings and the Gurobi and CPLEX MIP adapters.
 Other methods can be added to SOLVER_REGISTRY once their adapters exist.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import math
@@ -27,6 +28,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from cbmp.graph import Graph, load_graph
 from cbmp.harwell_boeing import read_harwell_boeing  # noqa: E402
 from cbmp.models.mip import MIPFormulation  # noqa: E402
 from cbmp.result import append_jsonl, normalize_result, read_jsonl  # noqa: E402
@@ -68,6 +70,15 @@ def _load_instance(spec: Any, base_dir: Path) -> dict[str, Any]:
         source = _resolve_repo_path(str(spec["path"]), base_dir)
         if not source.is_file():
             raise FileNotFoundError(f"Instance file does not exist: {source}")
+        if source.suffix.lower() == ".json":
+            graph = load_graph(source)
+            return {
+                "graph_id": str(spec.get("graph_id", graph.name)), "n": graph.n,
+                "edges": graph.edges, "num_edges": len(graph.edges),
+                "graph_checksum": hashlib.sha256(source.read_bytes()).hexdigest(),
+                "source_path": str(source.relative_to(base_dir)) if source.is_relative_to(base_dir) else str(source),
+                "matrix_type": None,
+            }
         graph = read_harwell_boeing(source)
         graph_id = str(spec.get("graph_id", source.stem))
         return {
@@ -137,8 +148,11 @@ def run_benchmark(
 ) -> int:
     base_dir = config_path.resolve().parent.parent
     instances = config.get("instances")
+    if "manifest" in config:
+        with _resolve_repo_path(config["manifest"], base_dir).open(encoding="utf-8", newline="") as stream:
+            instances = [{"graph_id": row["instance"], "path": row["graph_path"]} for row in csv.DictReader(stream)]
     methods = config.get("methods", ["gurobi_mip", "cplex_mip"])
-    time_limit = config.get("time_limit", 300)
+    time_limit = config.get("time_limit_seconds", config.get("time_limit", 300))
     threads = config.get("threads", 1)
     seed = config.get("seed", 0)
     output_value = output_override or Path(config.get("output", "results/benchmark.jsonl"))
@@ -167,7 +181,7 @@ def run_benchmark(
     ):
         raise ValueError("max_constraints must be a positive integer or null")
 
-    unknown = sorted(set(methods) - set(SOLVER_REGISTRY))
+    unknown = sorted(set(methods) - set(SOLVER_REGISTRY) - {"sat_pairwise", "sat_order"})
     if unknown:
         raise ValueError(
             "Methods are not implemented yet: " + ", ".join(unknown)
@@ -192,6 +206,7 @@ def run_benchmark(
         estimated_constraints = 2 * n + len(edges) * n * n
 
         for method in methods:
+            sat_method = method in ("sat_pairwise", "sat_order")
             metadata = {
                 "graph_id": instance["graph_id"],
                 "graph_checksum": instance["graph_checksum"],
@@ -200,7 +215,7 @@ def run_benchmark(
                 "n": n,
                 "num_edges": len(edges),
                 "method": method,
-                "encoding": None,
+                "encoding": method.removeprefix("sat_") if sat_method else None,
                 "seed": seed,
                 "threads": threads,
                 "time_limit": float(time_limit),
@@ -212,8 +227,11 @@ def run_benchmark(
                 continue
 
             completed += 1
+            if dry_run and sat_method:
+                print(f"[DRY] {method}: n={n}, m={len(edges)}")
+                continue
             if dry_run:
-                if max_constraints is not None and estimated_constraints > max_constraints:
+                if not sat_method and max_constraints is not None and estimated_constraints > max_constraints:
                     print(f"[DRY/GUARD] {instance['graph_id']} / {method}: "
                           f"{estimated_constraints:,} constraints exceeds limit "
                           f"{max_constraints:,}")
@@ -223,7 +241,7 @@ def run_benchmark(
                           f"constraints~{estimated_constraints:,}")
                 continue
 
-            if max_constraints is not None and estimated_constraints > max_constraints:
+            if not sat_method and max_constraints is not None and estimated_constraints > max_constraints:
                 record = normalize_result({
                     "status": "NO_SOLUTION",
                     "termination_reason": "error",
@@ -249,13 +267,24 @@ def run_benchmark(
                       f"n={n}, m={len(edges)}")
                 run_started = time.perf_counter()
                 try:
-                    formulation = MIPFormulation(n, tuple(edges))
-                    adapter_result = SOLVER_REGISTRY[method](
-                        formulation,
-                        time_limit=float(time_limit),
-                        threads=threads,
-                        output_flag=solver_output,
-                    )
+                    if sat_method:
+                        from cbmp.solvers.sat import solve
+                        graph = Graph(instance["graph_id"], n, tuple(edges))
+                        result = solve(graph, metadata["encoding"], time_limit)
+                        adapter_result = {
+                            "status": result.status, "termination_reason": result.termination_reason,
+                            "labeling": result.labels, "incumbent": result.bandwidth,
+                            "lower_bound": result.lower_bound, "optimality_proven": result.status == "OPTIMAL",
+                            "total_time": result.runtime_seconds, "build_time": None, "solve_time": None,
+                        }
+                    else:
+                        formulation = MIPFormulation(n, tuple(edges))
+                        adapter_result = SOLVER_REGISTRY[method](
+                            formulation,
+                            time_limit=float(time_limit),
+                            threads=threads,
+                            output_flag=solver_output,
+                        )
                     # Normalize adapter output and keep runner-owned metadata authoritative.
                     record = normalize_result(adapter_result, metadata=metadata)
                 except Exception as exc:  # keep a failed run in the audit trail
