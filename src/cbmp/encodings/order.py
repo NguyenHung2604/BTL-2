@@ -1,11 +1,14 @@
-"""order SAT encoding for the CBMP decision problem."""
+"""Pure threshold encoding. Positive y[v,t] means labels[v] <= t."""
 
 from collections.abc import Sequence
-from typing import Any
+from itertools import combinations
+from typing import TypedDict
 
 from ..graph import Graph
+from ..objective import cyclic_distance
 
 
+<<<<<<< HEAD
 def build(graph: Graph, k: int) -> tuple[list[list[int]], dict[str, Any]]:
   """Return signed-integer CNF clauses for bandwidth <= k and decoding metadata."""
   # Lấy số đỉnh và danh sách cạnh (điều chỉnh lại nếu graph.py đặt tên khác, vd: graph.num_vertices)
@@ -115,3 +118,56 @@ def decode(model: Sequence[int], metadata: dict[str, Any]) -> list[int]:
     labels.append(pos)
 
   return labels
+=======
+class OrderMetadata(TypedDict):
+    n: int
+    var_map: dict[tuple[int, int], int]
+
+
+def threshold(v: int, t: int, n: int) -> int:
+    return 1 + v * (n - 1) + t
+
+
+def different_from(v: int, i: int, n: int) -> list[int]:
+    """Encode p[v] != i as p[v] <= i-1 OR p[v] > i, omitting false boundary terms."""
+    literals = []
+    if i > 0:
+        literals.append(threshold(v, i - 1, n))
+    if i < n - 1:
+        literals.append(-threshold(v, i, n))
+    return literals
+
+
+def build(graph: Graph, k: int) -> tuple[list[list[int]], OrderMetadata]:
+    """Monotone chains select one position. Forbid collisions and distant edge pairs."""
+    n = graph.n
+    var_map = {(v, t): threshold(v, t, n) for v in graph.vertices for t in range(n - 1)}
+    metadata: OrderMetadata = {"n": n, "var_map": var_map}
+    if k < 0:
+        return [[]], metadata
+    clauses = [
+        [-var_map[v, t], var_map[v, t + 1]]
+        for v in graph.vertices for t in range(n - 2)
+    ]
+    for u, v in combinations(graph.vertices, 2):
+        for i in range(n):
+            clauses.append(different_from(u, i, n) + different_from(v, i, n))
+    if k < n // 2:
+        for u, v in graph.edges:
+            for i in range(n):
+                for j in range(n):
+                    if cyclic_distance(i, j, n) > k:
+                        clauses.append(different_from(u, i, n) + different_from(v, j, n))
+    return clauses, metadata
+
+
+def decode(model: Sequence[int], metadata: OrderMetadata | dict[str, int]) -> list[int]:
+    """Return the first true threshold in each chain, or n-1 for an all-false chain."""
+    n = metadata["n"]
+    positive = {lit for lit in model if lit > 0}
+    var_map = metadata.get("var_map")
+    if var_map is None:  # Earlier build() results stored only n.
+        var_map = {(v, t): threshold(v, t, n) for v in range(n) for t in range(n - 1)}
+    return [next((t for t in range(n - 1) if var_map[v, t] in positive), n - 1)
+            for v in range(n)]
+>>>>>>> 2de39700b4b3275def1c54556981016019170898
