@@ -29,3 +29,17 @@ def test_gurobi_against_oracle():
     assert result.status == "OPTIMAL"
     assert result.bandwidth == result.lower_bound == optimum(graph)
     assert validate_solution(graph, result.labels, result.bandwidth)
+
+
+def test_sat_optimization_records_per_threshold_metrics():
+    graph = Graph("scrambled_path", 5, ((0, 2), (2, 4), (4, 1), (1, 3)))
+    result = solve(graph, "pairwise", 10)
+    assert result.build_time > 0
+    assert result.solve_time >= 0
+    assert result.num_variables == graph.n * graph.n
+    assert result.num_clauses > 0
+    assert result.max_num_clauses > 0
+    assert result.decision_history
+    assert result.decision_history[0]["k"] == 1
+    assert result.decision_history[0]["status"] == "SAT"
+    assert "Glucose3" in result.solver_version
