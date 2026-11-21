@@ -18,7 +18,7 @@ import json
 import math
 import subprocess
 import sys
-import time
+from time import monotonic
 from pathlib import Path
 from typing import Any, Callable
 
@@ -403,35 +403,79 @@ def run_benchmark(
             else:
                 print(f"[RUN ] {instance['graph_id']} / {method}: "
                       f"n={n}, m={len(edges)}")
-                run_started = time.perf_counter()
+                run_started = monotonic()
                 try:
                     if sat_method:
                         from cbmp.solvers.sat import solve
+
                         graph = Graph(instance["graph_id"], n, tuple(edges))
-                        result = solve(graph, metadata["encoding"], time_limit)
-                        adapter_result = {
-                            "status": result.status, "termination_reason": result.termination_reason,
-                            "labeling": result.labels, "incumbent": result.bandwidth,
-                            "lower_bound": result.lower_bound, "optimality_proven": result.status == "OPTIMAL",
-                            "total_time": result.runtime_seconds,
-                            "build_time": result.build_time,
-                            "solve_time": result.solve_time,
-                            "num_variables": result.num_variables,
-                            "num_clauses": result.num_clauses,
-                            "max_num_clauses": result.max_num_clauses,
-                            "decision_history": result.decision_history,
-                            "solver_version": result.solver_version,
-                        }
+                        preparation_time = monotonic() - run_started
+                        remaining_time = float(time_limit) - preparation_time
+
+                        if remaining_time <= 0:
+                            adapter_result = {
+                                "status": "NO_SOLUTION",
+                                "termination_reason": "timeout",
+                                "optimality_proven": False,
+                                "labeling": None,
+                                "incumbent": None,
+                                "lower_bound": None,
+                                "build_time": preparation_time,
+                                "solve_time": 0.0,
+                                "total_time": preparation_time,
+                            }
+                        else:
+                            result = solve(
+                                graph,
+                                metadata["encoding"],
+                                remaining_time,
+                            )
+                            adapter_result = {
+                                "status": result.status,
+                                "termination_reason": result.termination_reason,
+                                "labeling": result.labels,
+                                "incumbent": result.bandwidth,
+                                "lower_bound": result.lower_bound,
+                                "optimality_proven": result.status == "OPTIMAL",
+                                "total_time": result.runtime_seconds,
+                                "build_time": result.build_time + preparation_time,
+                                "solve_time": result.solve_time,
+                                "num_variables": result.num_variables,
+                                "num_clauses": result.num_clauses,
+                                "max_num_clauses": result.max_num_clauses,
+                                "decision_history": result.decision_history,
+                                "solver_version": result.solver_version,
+                            }
                     else:
                         formulation = MIPFormulation(n, tuple(edges))
-                        adapter_result = SOLVER_REGISTRY[method](
-                            formulation,
-                            time_limit=float(time_limit),
-                            threads=threads,
-                            output_flag=solver_output,
-                        )
+                        preparation_time = monotonic() - run_started
+                        remaining_time = float(time_limit) - preparation_time
+
+                        if remaining_time <= 0:
+                            adapter_result = {
+                                "status": "NO_SOLUTION",
+                                "termination_reason": "timeout",
+                                "optimality_proven": False,
+                                "labeling": None,
+                                "incumbent": None,
+                                "lower_bound": None,
+                                "build_time": preparation_time,
+                                "solve_time": 0.0,
+                                "total_time": preparation_time,
+                            }
+                        else:
+                            adapter_result = SOLVER_REGISTRY[method](
+                                formulation,
+                                time_limit=remaining_time,
+                                threads=threads,
+                                output_flag=solver_output,
+                            )
+                            adapter_result["build_time"] = (
+                                float(adapter_result.get("build_time") or 0.0)
+                                + preparation_time
+                            )
                     # Validate every incumbent independently at the runner boundary.
-                    validation_started = time.perf_counter()
+                    validation_started = monotonic()
                     labels = adapter_result.get("labeling")
                     if labels is not None:
                         actual_bandwidth = validated_bandwidth(n, edges, labels)
@@ -446,10 +490,10 @@ def run_benchmark(
                         raise ValueError("Solver reported a solution status without a labeling")
                     if adapter_result.get("status") == "OPTIMAL" and not adapter_result.get("optimality_proven", False):
                         raise ValueError("Solver reported OPTIMAL without an optimality proof flag")
-                    validation_time = time.perf_counter() - validation_started
+                    validation_time = monotonic() - validation_started
                     adapter_result["validation_time"] = validation_time
                     adapter_total = adapter_result.get("total_time")
-                    runner_total = time.perf_counter() - run_started
+                    runner_total = monotonic() - run_started
                     adapter_result["total_time"] = max(
                         float(adapter_total) if adapter_total is not None else 0.0,
                         runner_total,
@@ -457,7 +501,7 @@ def run_benchmark(
                     # Normalize adapter output and keep runner-owned metadata authoritative.
                     record = normalize_result(adapter_result, metadata=metadata)
                 except Exception as exc:  # keep a failed run in the audit trail
-                    elapsed = time.perf_counter() - run_started
+                    elapsed = monotonic() - run_started
                     record = normalize_result(
                         {
                             "status": "NO_SOLUTION",
