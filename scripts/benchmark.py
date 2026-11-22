@@ -266,11 +266,12 @@ def run_benchmark(
     if not isinstance(planned_methods, list):
         raise ValueError("planned_methods must be a list when provided")
 
-    unknown = sorted(set(methods) - set(SOLVER_REGISTRY) - {"sat_pairwise", "sat_order"})
+    supported_methods = set(SOLVER_REGISTRY) | {"sat_pairwise", "sat_order", "cp_sat"}
+    unknown = sorted(set(methods) - supported_methods)
     if unknown:
         raise ValueError(
             "Methods are not implemented yet: " + ", ".join(unknown)
-            + ". Available methods: " + ", ".join(sorted(SOLVER_REGISTRY))
+            + ". Available methods: " + ", ".join(sorted(supported_methods))
         )
 
     loaded_instances = [_load_instance(item, base_dir) for item in instances]
@@ -294,6 +295,7 @@ def run_benchmark(
 
         for method in methods:
             sat_method = method in ("sat_pairwise", "sat_order")
+            cp_sat_method = method == "cp_sat"
             metadata = {
                 "graph_id": instance["graph_id"],
                 "graph_checksum": instance["graph_checksum"],
@@ -309,7 +311,11 @@ def run_benchmark(
                 "n": n,
                 "num_edges": len(edges),
                 "method": method,
-                "encoding": method.removeprefix("sat_") if sat_method else None,
+                "encoding": (
+                    method.removeprefix("sat_") if sat_method
+                    else "integer_position" if cp_sat_method
+                    else None
+                ),
                 "seed": seed,
                 "threads": threads,
                 "time_limit": float(time_limit),
@@ -444,6 +450,40 @@ def run_benchmark(
                                 "num_clauses": result.num_clauses,
                                 "max_num_clauses": result.max_num_clauses,
                                 "decision_history": result.decision_history,
+                                "solver_version": result.solver_version,
+                            }
+                    elif cp_sat_method:
+                        from cbmp.solvers.cp_sat import solve
+
+                        graph = Graph(instance["graph_id"], n, tuple(edges))
+                        preparation_time = monotonic() - run_started
+                        remaining_time = float(time_limit) - preparation_time
+
+                        if remaining_time <= 0:
+                            adapter_result = {
+                                "status": "NO_SOLUTION",
+                                "termination_reason": "timeout",
+                                "optimality_proven": False,
+                                "labeling": None,
+                                "incumbent": None,
+                                "lower_bound": None,
+                                "build_time": preparation_time,
+                                "solve_time": 0.0,
+                                "total_time": preparation_time,
+                            }
+                        else:
+                            result = solve(graph, remaining_time)
+                            adapter_result = {
+                                "status": result.status,
+                                "termination_reason": result.termination_reason,
+                                "labeling": result.labels,
+                                "incumbent": result.bandwidth,
+                                "lower_bound": result.lower_bound,
+                                "optimality_proven": result.status == "OPTIMAL",
+                                "total_time": result.runtime_seconds,
+                                "build_time": result.build_time + preparation_time,
+                                "solve_time": result.solve_time,
+                                "num_variables": result.num_variables,
                                 "solver_version": result.solver_version,
                             }
                     else:

@@ -6,12 +6,12 @@
   "methods": [
     "sat_pairwise",
     "sat_order",
+    "cp_sat",
     "cplex_mip",
     "gurobi_mip"
   ],
   "time_limit_seconds": 10,
   "planned_methods": [
-    "cp_sat",
     "cplex_cp"
   ],
   "output": "results/smoke.jsonl"

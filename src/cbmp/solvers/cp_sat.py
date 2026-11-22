@@ -1,79 +1,165 @@
-"""Integer-position CP-SAT model for cyclic bandwidth minimization."""
+"""CP-SAT optimization adapter for the Cyclic Bandwidth Minimization Problem."""
 
-import math
-from threading import Lock
+from importlib.metadata import PackageNotFoundError, version
+from math import ceil, isfinite
 from time import monotonic
 
-from core.search import run_solver
+from ortools.sat.python import cp_model
+
+from ..graph import Graph
+from ..objective import bandwidth
+from ..result import SolveResult
+from ..validator import validate_solution
 
 
-def _optimize(emit, graph, result, deadline):
-    from ortools.sat.python import cp_model
+def _solver_version() -> str:
+    try:
+        return f"OR-Tools {version('ortools')} / CP-SAT"
+    except PackageNotFoundError:
+        return "OR-Tools CP-SAT (version unavailable)"
 
-    emit(("phase", "build_time", monotonic()))
-    model = cp_model.CpModel()
+
+def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
+    """Minimize cyclic bandwidth within one wall-clock budget.
+
+    Each vertex receives a distinct integer position on the cycle. For every
+    edge, its cyclic distance is min(|p[u]-p[v]|, n-|p[u]-p[v]|).
+    """
+    if (
+        isinstance(time_limit_seconds, bool)
+        or not isinstance(time_limit_seconds, (int, float))
+        or not isfinite(float(time_limit_seconds))
+        or time_limit_seconds < 0
+    ):
+        raise ValueError("time_limit_seconds must be a finite nonnegative number")
+
+    started = monotonic()
     n = graph.n
-    positions = [model.new_int_var(0, n - 1, f"p_{v}") for v in graph.vertices]
+
+    # Empty-edge graphs have the trivial optimum 0; this also handles n == 0.
+    if not graph.edges:
+        labels = list(range(n))
+        elapsed = monotonic() - started
+        return SolveResult(
+            instance=graph.name,
+            method="cp_sat",
+            status="OPTIMAL",
+            termination_reason="completed",
+            runtime_seconds=elapsed,
+            labels=labels,
+            bandwidth=0,
+            lower_bound=0,
+            build_time=0.0,
+            solve_time=0.0,
+            num_variables=0,
+            solver_version=_solver_version(),
+        )
+
+    if n <= 0:
+        raise ValueError("A graph with edges must have at least one vertex")
+
+    build_started = monotonic()
+    model = cp_model.CpModel()
+
+    positions = [
+        model.new_int_var(0, n - 1, f"position_{v}")
+        for v in range(n)
+    ]
     model.add_all_different(positions)
-    bound = model.new_int_var(result["lower_bound"], result["incumbent"], "bandwidth")
-    for u, v in graph.edges:
-        if monotonic() >= deadline:
-            emit(("finish", "timeout"))
-            return
-        delta = model.new_int_var(0, n - 1, f"delta_{u}_{v}")
-        distance = model.new_int_var(0, n // 2, f"distance_{u}_{v}")
-        model.add_abs_equality(delta, positions[u] - positions[v])
-        model.add_min_equality(distance, [delta, n - delta])
-        model.add(distance <= bound)
-    model.minimize(bound)
-    emit(("size", len(model.proto.variables), None))
 
-    # Native search workers can report bounds and witnesses independently.
-    # Serialize messages to the supervisor's one-way pipe.
-    progress_lock = Lock()
-    last_bound = result["lower_bound"]
+    edge_distances = []
+    for edge_index, (u, v) in enumerate(graph.edges):
+        absolute = model.new_int_var(0, n - 1, f"absolute_{edge_index}")
+        model.add_abs_equality(absolute, positions[u] - positions[v])
 
-    def publish_bound(native_bound):
-        nonlocal last_bound
-        if not math.isfinite(native_bound):
-            return
-        lower = math.ceil(native_bound - 1e-6)
-        with progress_lock:
-            if lower > last_bound:
-                emit(("bound", lower))
-                last_bound = lower
+        cyclic = model.new_int_var(0, n // 2, f"cyclic_{edge_index}")
+        model.add_min_equality(cyclic, [absolute, n - absolute])
+        edge_distances.append(cyclic)
 
-    class Witness(cp_model.CpSolverSolutionCallback):
-        def on_solution_callback(self):
-            labels = [self.value(p) for p in positions]
-            with progress_lock:
-                emit(("incumbent", labels, None))
+    objective = model.new_int_var(0, n // 2, "bandwidth")
+    model.add_max_equality(objective, edge_distances)
+    model.minimize(objective)
+
+    build_time = monotonic() - build_started
+    remaining = float(time_limit_seconds) - build_time
+    if remaining <= 0:
+        return SolveResult(
+            instance=graph.name,
+            method="cp_sat",
+            status="NO_SOLUTION",
+            termination_reason="timeout",
+            runtime_seconds=monotonic() - started,
+            labels=None,
+            bandwidth=None,
+            lower_bound=None,
+            build_time=build_time,
+            solve_time=0.0,
+            num_variables=len(model.proto.variables),
+            solver_version=_solver_version(),
+        )
 
     solver = cp_model.CpSolver()
-    solver.parameters.random_seed = result["seed"]
-    solver.parameters.num_search_workers = result["threads"]
-    solver.parameters.absolute_gap_limit = 0.0
-    solver.parameters.relative_gap_limit = 0.0
-    solver.best_bound_callback = publish_bound
-    remaining = deadline - monotonic()
-    if remaining <= 0:
-        emit(("finish", "timeout"))
-        return
     solver.parameters.max_time_in_seconds = remaining
-    emit(("phase", "solve_time", monotonic()))
-    status = solver.solve(model, Witness())
-    emit(("phase", None, monotonic()))
-    if status in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-        emit(("incumbent", [solver.value(p) for p in positions], None))
-    elif status != cp_model.UNKNOWN:
-        raise RuntimeError(f"Unexpected CP-SAT status: {solver.status_name(status)}")
-    # UNKNOWN can still carry a valid lower bound. Reading variable values
-    # requires a feasible solution, whereas reading the bound does not.
-    publish_bound(solver.best_objective_bound)
-    emit(("finish", "completed" if status == cp_model.OPTIMAL else "timeout"))
+    solve_started = monotonic()
+    status_code = solver.solve(model)
+    solve_time = monotonic() - solve_started
 
+    if status_code in (cp_model.OPTIMAL, cp_model.FEASIBLE):
+        labels = [int(solver.value(position)) for position in positions]
+        value = int(solver.value(objective))
+        if not validate_solution(graph, labels, value):
+            raise ValueError("CP-SAT returned an invalid CBMP labeling")
 
-def solve(graph_id, n, edges, config=None, seed=0, wall_budget=60.0, threads=1):
-    """Minimize maximum cyclic distance under one wall-clock budget."""
-    return run_solver(_optimize, "cp_sat", "ortools", graph_id, n, edges,
-                      config, seed, wall_budget, threads)
+        if status_code == cp_model.OPTIMAL:
+            status = "OPTIMAL"
+            termination_reason = "completed"
+            lower_bound = value
+        else:
+            status = "FEASIBLE"
+            termination_reason = "timeout"
+            # CP-SAT's bound is floating point; ceil is the safe integer
+            # lower bound for this integer-valued minimization objective.
+            lower_bound = max(0, min(value, int(ceil(solver.best_objective_bound - 1e-6))))
+
+        return SolveResult(
+            instance=graph.name,
+            method="cp_sat",
+            status=status,
+            termination_reason=termination_reason,
+            runtime_seconds=monotonic() - started,
+            labels=labels,
+            bandwidth=bandwidth(graph, labels),
+            lower_bound=lower_bound,
+            build_time=build_time,
+            solve_time=solve_time,
+            num_variables=len(model.proto.variables),
+            solver_version=_solver_version(),
+        )
+
+    if status_code == cp_model.INFEASIBLE:
+        status = "INFEASIBLE"
+        reason = "completed"
+        lower_bound = None
+    elif status_code == cp_model.MODEL_INVALID:
+        status = "NO_SOLUTION"
+        reason = "error"
+        lower_bound = None
+    else:  # UNKNOWN: the time budget expired before a feasible solution existed.
+        status = "NO_SOLUTION"
+        reason = "timeout"
+        lower_bound = None
+
+    return SolveResult(
+        instance=graph.name,
+        method="cp_sat",
+        status=status,
+        termination_reason=reason,
+        runtime_seconds=monotonic() - started,
+        labels=None,
+        bandwidth=None,
+        lower_bound=lower_bound,
+        build_time=build_time,
+        solve_time=solve_time,
+        num_variables=len(model.proto.variables),
+        solver_version=_solver_version(),
+    )

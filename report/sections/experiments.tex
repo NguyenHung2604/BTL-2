@@ -52,43 +52,55 @@ repository also records the 28 names in
 Table A.2 as candidates; a candidate is added to the selected manifest only
 after its raw file, normalized graph, and checksums have been verified.
 
-\subsection{Pilot protocol}
-The MIP pilot uses Gurobi MIP and CPLEX MIP on the three selected graphs. Each
-run has a 60-second end-to-end wall-clock budget, one solver thread, and seed
-zero. The configured preflight limit is one million estimated constraints.
-The BP 400 MIP model is estimated to require 2,712,872,904 constraints and is
-therefore rejected before model construction. This outcome is recorded as a
-preflight size error, not as a timeout or a solver failure. On commit
-\texttt{71d4baf}, the actual pilot attempted both smaller instances with
-Gurobi 14.0.0 and CPLEX 22.2.0.0. Both backends rejected JGL009 and BCSSTK01
-because the installed licenses were size-limited: Gurobi reported
-\texttt{Model too large for size-limited license}, while CPLEX returned error
-1016 (\texttt{Community Edition. Problem size limits exceeded}). These are
-license-edition limits, not evidence of infeasibility, timeout, or a defect in
-the shared formulation. The raw JSONL log preserves the exact messages.
+\subsection{Pilot protocol and observed outcomes}
+The day-8 pilot covers three verified graphs and the five methods currently
+available to the runner: pairwise SAT, order SAT, CP-SAT, CPLEX MIP, and
+Gurobi MIP. Each planned run has a 60-second end-to-end wall-clock budget,
+one thread, and seed zero. The run log contains 15 records. The results below
+are pilot observations, not the final full benchmark. In the table, OPT means
+optimality proven, F/TO means a validated feasible incumbent with timeout, and
+Guard means rejected by the preflight size guard before solver startup.
 
 \begin{table}[t]
 \centering
 \small
-\caption{Actual MIP pilot outcomes on commit \texttt{71d4baf}.}
-\label{tab:mip-pilot}
-\begin{tabular}{lrrll}
+\caption{Day-8 pilot outcomes with a 60-second per-run budget.}
+\label{tab:day8-pilot}
+\begin{tabular}{lccccc}
 \hline
-Instance & Variables & Constraints & Gurobi 14.0.0 & CPLEX 22.2.0.0 \\
+Instance & Pairwise & Order & CP-SAT & CPLEX MIP & Gurobi MIP \\
 \hline
-JGL009 & 82 & 2,610 & Size-limited license & Community error 1016 \\
-BCSSTK01 & 2,305 & 405,600 & Size-limited license & Community error 1016 \\
-BP 400 & -- & 2,712,872,904 & Preflight guard & Preflight guard \\
+JGL009 & OPT & OPT & OPT & Lic. err. & Lic. err. \\
+BCSSTK01 & F/TO & F/TO & OPT & Lic. err. & Lic. err. \\
+BP 400 & Guard & Guard & F/TO & Guard & Guard \\
 \hline
 \end{tabular}
 \end{table}
 
-The repository also contains toy smoke records for \texttt{path5} and
-\texttt{cycle6}, where both MIP backends report optimal solutions. However,
-those records identify commit \texttt{778db217}, not the current
-\texttt{71d4baf} snapshot; they are retained as historical smoke evidence and
-must be regenerated at the current commit before being used as its integration
-acceptance evidence.
+On JGL009, pairwise SAT, order SAT, and CP-SAT prove an optimum of 4 in
+approximately 0.050 s, 0.001 s, and 0.593 s, respectively. On BCSSTK01,
+CP-SAT proves optimality in approximately 46.686 s. Both SAT encodings return
+validated feasible solutions but do not prove optimality within 60 seconds.
+On BP 400, CP-SAT returns a feasible solution but does not prove optimality
+within the time limit; the pairwise and order SAT encodings are rejected by
+the preflight guard because their estimated clause counts are approximately
+3.27 billion and 2.99 billion, respectively.
+
+The two MIP backends cannot be compared on the tested machine. On JGL009 and
+BCSSTK01, Gurobi reports that the model is too large for its size-limited
+license, while CPLEX Community Edition reports error 1016 (problem-size
+limits exceeded). These are license-edition restrictions, not infeasibility
+or algorithmic timeouts. On BP 400, both MIP models are rejected before solver
+startup because the estimated formulation contains 2,712,872,904
+constraints. Accordingly, no MIP objective value or runtime is reported.
+
+The CPLEX CP method is not part of these 15 runs. Its adapter is still a stub
+and the CP Optimizer executable was not available in the tested environment.
+The pilot therefore evaluates five methods, not all six methods in the
+project plan. The 28 Harwell--Boeing candidates are recorded as candidates,
+but the current verified manifest contains only JGL009, BCSSTK01, and BP 400;
+results must be described as a three-instance subset, not as a complete
+28-instance benchmark.
 
 \subsection{Main benchmark protocol}
 The planned main-benchmark budget is 300 seconds per instance and method,
@@ -103,12 +115,11 @@ The benchmark runner stores one JSON object per run in JSONL format and
 supports resuming completed runs. It preserves failures and distinguishes
 solver status (optimal, feasible, or no solution) from termination reason
 (completed, timeout, out-of-memory, license error, or other error). Every
-reported incumbent is independently validated. The main six-method comparison
-is considered ready only after both SAT encodings and all four CP/MIP
-baselines pass the project's small-instance integration gate. At the current
-repository snapshot, the SAT encodings and two MIP adapters are available;
-CP-SAT and CPLEX CP adapters remain to be completed, so no six-method result is
-claimed in this draft.
+reported incumbent is independently validated. The six-method comparison is
+not yet complete: the current pilot covers five methods, while CPLEX CP is
+unavailable. The two MIP backends also fail on the selected non-toy instances
+because the installed solver editions impose model-size limits. These
+limitations are reported explicitly; no six-method result is claimed.
 
 \subsection{Results reporting}
 The plotting script regenerates dataset and run-summary CSV files and uses
@@ -116,6 +127,10 @@ The plotting script regenerates dataset and run-summary CSV files and uses
 the available records: status counts, a cactus plot of instances with proven
 optimality, a matched pairwise-versus-order runtime scatter plot, and a
 model-size plot when the required measurements exist. Missing measurements
-are left missing rather than imputed. Solver outcomes and numerical results
-will be inserted after the pilot and main batch have actually run; no
-performance conclusion is drawn from dry-run estimates.
+are left missing rather than imputed. The day-8 pilot outcomes are summarized in Table~\ref{tab:day8-pilot}.
+The 300-second main benchmark has completed for all 15 configured
+instance--method pairs. Its outcomes are summarized in
+Table~\ref{tab:main-benchmark-outcomes}. The generated CSV summaries
+are retained alongside the source JSONL log for reproducibility.
+Performance conclusions remain limited by the three-instance dataset
+and the unavailable MIP and CPLEX CP backends.
