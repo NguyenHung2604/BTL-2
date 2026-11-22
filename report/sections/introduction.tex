@@ -1,2 +1,32 @@
 \section{Introduction}
-% Motivate the problem and state the research questions.
+\label{sec:intro}
+
+Consider six positions around a table. Positions 0 and 5 are adjacent, just
+as positions 0 and 1 are. If an edge of a graph joins two vertices, their
+separation in such a layout is the length of the shorter arc between their
+positions. The cyclic bandwidth minimization problem (CBMP) asks how small
+the largest of these edge separations can be when each vertex receives a
+distinct position.
+
+A layout gives an upper bound that can be checked by inspecting its edges.
+A claim of optimality also requires evidence that every layout with a smaller
+bandwidth is impossible. This distinction matters when a solver reaches its
+time limit. A run can yield a useful layout even while the optimum remains
+unknown.
+
+We study three questions:
+\begin{enumerate}
+\item How do direct pairwise and order encodings compare in variable count,
+      clause count, construction time and time to prove optimality?
+\item On identical graphs and under a common wall-clock budget, which
+      methods find the smallest validated bandwidth and which close the
+      gap to the lower bound?
+\item How do graph size, edge density and maximum degree affect model
+      construction, memory use and the bounds available at timeout?
+\end{enumerate}
+
+Section~\ref{sec:pairwise} gives the direct encoding, its size at a fixed
+threshold and the search procedure used in the pilot. The experimental
+comparison uses small graphs with exhaustive reference answers to check
+correctness, and graphs derived from Harwell--Boeing matrices to study
+performance.

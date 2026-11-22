@@ -1,11 +1,29 @@
 \documentclass[a4paper,fleqn]{cas-sc}
 \usepackage[numbers]{natbib}
+\usepackage{amsmath}
 \graphicspath{{../results/figures/}}
 \begin{document}
-\shorttitle{Cyclic Bandwidth Minimization}
+\shorttitle{Exact methods for cyclic bandwidth}
 \shortauthors{CBMP project team}
-\title[mode=title]{Cyclic Bandwidth Minimization}
+\title[mode=title]{Exact SAT Encodings for Cyclic Bandwidth Minimization}
+\author{Nguyen Minh Hung}
+\author{Nguyen Minh Duc}
+\author{Ninh Ngoc Hung}
+\begin{abstract}
+We study the minimum possible maximum edge distance when the vertices of
+an undirected graph occupy distinct positions on a circle. We formulate
+the bounded-distance decision problem in SAT and use a decreasing sequence
+of thresholds to prove optimality or return a validated layout and lower
+bound at timeout. A pilot on three graphs from Harwell--Boeing matrices
+illustrates both outcomes. For the 48-vertex graph derived from BCSSTK01,
+the pairwise solver and CP-SAT each found bandwidth 12 within the 60-second
+budget; the recorded lower bound was 6.
+\end{abstract}
+\begin{keywords}
+Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programming
+\end{keywords}
 \maketitle
+
 \input{sections/introduction}
 \input{sections/background}
 \input{sections/pairwise}
@@ -13,6 +31,13 @@
 \input{sections/baselines}
 \input{sections/experiments}
 \input{sections/conclusion}
+
+\section*{Data availability}
+The project uses the graph inputs and conversion rules in the project
+repository. The six pairwise and CP-SAT pilot runs are summarized in
+\path{results/summary/day6_pairwise_cpsat.csv}.
+\url{https://github.com/NguyenHung2604/BTL-2}
+
 \bibliographystyle{cas-model2-names}
 \bibliography{references}
 \end{document}
