@@ -1,16 +1,12 @@
 {
-  "description": "Pilot CBMP benchmark on the bundled Harwell-Boeing matrices.",
-  "instances": [
-    {"graph_id": "jgl009", "path": "data/pilot/jgl009.pua"},
-    {"graph_id": "bcsstm01", "path": "data/pilot/bcsstm01.rsa"},
-    {"graph_id": "bp___400", "path": "data/pilot/bp___400.rua"}
-  ],
+  "description": "Day-6/7 MIP pilot: three verified Harwell-Boeing graphs spanning size and density.",
+  "manifest": "data/manifest.csv",
   "methods": ["gurobi_mip", "cplex_mip"],
-  "time_limit": 300,
+  "time_limit_seconds": 60,
   "threads": 1,
   "seed": 0,
   "max_constraints": 1000000,
-  "output": "results/benchmark.jsonl",
+  "output": "results/mip_pilot.jsonl",
   "resume": true,
   "solver_output": false
 }

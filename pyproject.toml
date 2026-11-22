@@ -10,6 +10,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = ["pytest>=7", "python-sat>=1.8.dev1", "scipy>=1.15"]
+plots = ["cnsplots>=0.8.0"]
 engines = ["gurobipy>=13.0.3,<14", "ortools", "docplex", "cplex"]
 sat = ["python-sat>=1.8.dev1"]
 data = ["scipy>=1.15"]
