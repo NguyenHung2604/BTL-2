@@ -1,1 +1,2 @@
 data/benchmarks/harwell_boeing/graphs/*.json text eol=lf
+/data/benchmarks/harwell_boeing/raw/** -text
