@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from math import isfinite
 from threading import Timer
-from time import monotonic
+from time import perf_counter
 from typing import Any, Literal
 
 from pysat.solvers import Glucose3
@@ -37,22 +37,22 @@ def decide(graph: Graph, encoding: str, k: int, time_limit_seconds: float) -> De
     """Solve one threshold. UNKNOWN means the total threshold budget expired."""
     if not isfinite(time_limit_seconds) or time_limit_seconds < 0:
         raise ValueError("Expected a finite nonnegative budget")
-    deadline = monotonic() + time_limit_seconds
+    deadline = perf_counter() + time_limit_seconds
     encoder = {"pairwise": pairwise, "order": order}[encoding]
     if time_limit_seconds == 0:
         expected_vars = graph.n * graph.n if encoding == "pairwise" else graph.n * (graph.n - 1)
         return Decision("UNKNOWN", num_variables=expected_vars)
 
-    build_started = monotonic()
+    build_started = perf_counter()
     clauses, metadata = encoder.build(graph, k)
-    build_time = monotonic() - build_started
+    build_time = perf_counter() - build_started
     if encoding == "pairwise":
         num_variables = graph.n * graph.n
     else:
         num_variables = len(metadata["var_map"])
     num_clauses = len(clauses)
 
-    remaining = deadline - monotonic()
+    remaining = deadline - perf_counter()
     if remaining <= 0:
         return Decision(
             "UNKNOWN", build_time=build_time, num_variables=num_variables,
@@ -60,21 +60,21 @@ def decide(graph: Graph, encoding: str, k: int, time_limit_seconds: float) -> De
         )
 
     with Glucose3(bootstrap_with=clauses) as solver:
-        remaining = deadline - monotonic()
+        remaining = deadline - perf_counter()
         if remaining <= 0:
             return Decision(
                 "UNKNOWN", build_time=build_time, num_variables=num_variables,
                 num_clauses=num_clauses,
             )
         timer = Timer(remaining, solver.interrupt)
-        solve_started = monotonic()
+        solve_started = perf_counter()
         timer.start()
         try:
             feasible = solver.solve_limited(expect_interrupt=True)
         finally:
             timer.cancel()
             timer.join()
-        solve_time = monotonic() - solve_started
+        solve_time = perf_counter() - solve_started
         if feasible is None:
             return Decision(
                 "UNKNOWN", build_time=build_time, solve_time=solve_time,
@@ -102,7 +102,7 @@ def solve(
     """Tighten a validated upper bound under one total wall-clock budget."""
     if not isfinite(time_limit_seconds) or time_limit_seconds < 0:
         raise ValueError("Expected a finite nonnegative budget")
-    start = monotonic()
+    start = perf_counter()
     labels = list(graph.vertices)
     best = bandwidth(graph, labels)
     degrees = [0] * graph.n
@@ -119,7 +119,7 @@ def solve(
     history: list[dict[str, Any]] = []
 
     while best > lower:
-        remaining = max(0.0, time_limit_seconds - (monotonic() - start))
+        remaining = max(0.0, time_limit_seconds - (perf_counter() - start))
         threshold = best - 1
         answer = decide(graph, encoding, threshold, remaining)
         build_time += answer.build_time
@@ -151,7 +151,7 @@ def solve(
         f"sat_{encoding}",
         status,
         reason,
-        monotonic() - start,
+        perf_counter() - start,
         labels,
         best,
         lower,

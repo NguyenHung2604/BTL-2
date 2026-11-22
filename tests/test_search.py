@@ -2,7 +2,7 @@ from itertools import combinations
 
 import pytest
 
-from cbmp.solvers import cp_sat
+from core import cp_sat
 from brute_force import optimum
 from cbmp.graph import Graph
 from cbmp.validator import validated_bandwidth
