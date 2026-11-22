@@ -185,6 +185,90 @@ class TestBenchmarkRunner(unittest.TestCase):
             self.assertEqual(record["error_type"], "ValueError")
             self.assertIn("validator computed", record["error_message"])
 
+    def test_mip_build_timeout_does_not_call_solver(self):
+        config = {
+            "instances": [{"graph_id": "path3", "n": 3, "edges": [[0, 1], [1, 2]]}],
+            "methods": ["gurobi_mip"],
+            "time_limit": 5,
+            "threads": 1,
+            "resume": False,
+        }
+
+        def should_not_run(*args, **kwargs):
+            raise AssertionError("solver must not run after build exhausts the budget")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "build-timeout.jsonl"
+
+            with (
+                patch.object(benchmark, "monotonic", side_effect=[0, 6, 6, 6, 6]),
+                patch.dict(benchmark.SOLVER_REGISTRY, {"gurobi_mip": should_not_run}),
+            ):
+                benchmark.run_benchmark(
+                    config,
+                    REPO_ROOT / "configs" / "smoke.json",
+                    output_override=output,
+                )
+
+            record = read_jsonl(output)[0]
+
+        self.assertEqual(record["status"], "NO_SOLUTION")
+        self.assertEqual(record["termination_reason"], "timeout")
+        self.assertAlmostEqual(record["build_time"], 6.0)
+        self.assertEqual(record["solve_time"], 0.0)
+        self.assertIsNone(record["incumbent"])
+
+    def test_mip_solver_receives_remaining_time_and_keeps_timeout_incumbent(self):
+        config = {
+            "instances": [{"graph_id": "path3", "n": 3, "edges": [[0, 1], [1, 2]]}],
+            "methods": ["gurobi_mip"],
+            "time_limit": 5,
+            "threads": 1,
+            "resume": False,
+        }
+        received = {}
+
+        def fake_timeout_solver(formulation, **kwargs):
+            received["time_limit"] = kwargs["time_limit"]
+            return {
+                "method": "gurobi_mip",
+                "status": "FEASIBLE",
+                "termination_reason": "timeout",
+                "incumbent": 1,
+                "lower_bound": 0,
+                "optimality_proven": False,
+                "labeling": [0, 1, 2],
+                "build_time": 0.1,
+                "solve_time": 4.0,
+                "total_time": 4.1,
+                "num_variables": 10,
+                "num_constraints": 24,
+            }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "solver-timeout.jsonl"
+
+            with (
+                patch.object(benchmark, "monotonic", side_effect=[0, 1, 1, 1, 2]),
+                patch.dict(
+                    benchmark.SOLVER_REGISTRY,
+                    {"gurobi_mip": fake_timeout_solver},
+                ),
+            ):
+                benchmark.run_benchmark(
+                    config,
+                    REPO_ROOT / "configs" / "smoke.json",
+                    output_override=output,
+                )
+
+            record = read_jsonl(output)[0]
+
+        self.assertAlmostEqual(received["time_limit"], 4.0)
+        self.assertEqual(record["status"], "FEASIBLE")
+        self.assertEqual(record["termination_reason"], "timeout")
+        self.assertEqual(record["incumbent"], 1)
+        self.assertEqual(record["labeling"], [0, 1, 2])
+        self.assertAlmostEqual(record["build_time"], 1.1)
 
 if __name__ == "__main__":
     unittest.main()
