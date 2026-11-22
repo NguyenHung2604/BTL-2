@@ -1,2 +1,48 @@
 \section{Order encoding}
 % Describe threshold variables, clauses and decoding.
+\subsection{Chứng minh tính đúng đắn của mã hóa Order}
+
+Xét đồ thị vô hướng $G = (V, E)$ với $|V| = n$ đỉnh (đánh số $0, 1, \dots, n-1$), tập cạnh $E$ và ngưỡng băng thông vòng nguyên $K$. Ký hiệu khoảng cách vòng giữa hai vị trí $i, j \in \{0, 1, \dots, n-1\}$ là
+\[
+d_c(i, j) = \min\big(|i - j|,\; n - |i - j|\big).
+\]
+Trong \texttt{order.py}, với mỗi đỉnh $v \in \{0, \dots, n-1\}$ và ngưỡng $t \in \{0, \dots, n-2\}$, biến mệnh đề dương \texttt{y[v, t]} (tương ứng chỉ số \texttt{threshold(v, t, n)}) mang ý nghĩa:
+\[
+\texttt{y[v, t]} \iff \big(p(v) \le t\big).
+\]
+Gọi $F(K)$ là tập mệnh đề CNF sinh bởi \texttt{build(graph, K)} (với $K \ge 0$ và $n \ge 2$). Ta chứng minh rằng $F(K)$ là \textbf{SAT} khi và chỉ khi tồn tại một hoán vị (cách xếp) $p : V \to \{0, 1, \dots, n-1\}$ có cyclic bandwidth không vượt quá $K$, tức $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
+
+\subsubsection{Chiều thuận: Từ cách xếp sang SAT}
+
+Giả sử tồn tại một hoán vị hợp lệ $p$ trên $\{0, 1, \dots, n-1\}$ sao cho $d_c(p(u), p(v)) \le K$ với mọi cạnh $(u, v) \in E$. Ta thiết lập phép gán chân lý cho các biến của \texttt{order.py} bằng quy tắc:
+\[
+\texttt{y[v, t]} = \text{True} \iff p(v) \le t, \quad \forall v \in \{0, \dots, n-1\},\; \forall t \in \{0, \dots, n-2\}.
+\]
+Phép gán này thỏa mãn toàn bộ mệnh đề trong $F(K)$ vì các lý do sau:
+\begin{itemize}
+    \item \textbf{Mệnh đề đơn điệu (\texttt{[-var\_map[v, t], var\_map[v, t + 1]]}):} Nếu $p(v) \le t$ thì hiển nhiên $p(v) \le t + 1$, nghĩa là \texttt{y[v, t]} đúng kéo theo \texttt{y[v, t + 1]} đúng. Do đó mọi mệnh đề $(\neg \texttt{y[v, t]} \lor \texttt{y[v, t + 1]})$ đều được thỏa mãn.
+    \item \textbf{Mệnh đề khác vị trí (\texttt{different\_from}):} Với mỗi đỉnh $v$ và vị trí $i \in \{0, \dots, n-1\}$, \texttt{different\_from(v, i, n)} biểu diễn điều kiện $p(v) \neq i$ thông qua các ngưỡng $(p(v) \le i-1)$ khi $i > 0$ và $\neg(p(v) \le i)$ khi $i < n-1$. Vì $p$ là một hoán vị nên với mọi cặp đỉnh phân biệt $(u, v)$ và mọi vị trí $i$, ta không thể có đồng thời $p(u) = i$ và $p(v) = i$; ít nhất một trong hai điều kiện $p(u) \neq i$ hoặc $p(v) \neq i$ đúng, nên mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, i, n)} luôn đúng.
+    \item \textbf{Mệnh đề khoảng cách vòng $\le K$:} Nếu $K \ge \lfloor n/2 \rfloor$, \texttt{build} không phát sinh mệnh đề cấm cặp vị trí nào và mọi $d_c(p(u), p(v)) \le \lfloor n/2 \rfloor \le K$. Nếu $K < \lfloor n/2 \rfloor$, với mọi cạnh $(u, v) \in E$ ta có $d_c(p(u), p(v)) \le K$. Do đó cặp vị trí thực tế $(i, j) = (p(u), p(v))$ không bao giờ rơi vào trường hợp $d_c(i, j) > K$, tức là không vi phạm bất kỳ mệnh đề cấm \texttt{different\_from(u, i, n) + different\_from(v, j, n)} nào.
+\end{itemize}
+Vậy $F(K)$ là \textbf{SAT}.
+
+\subsubsection{Chiều đảo: Từ SAT về cách xếp}
+
+Ngược lại, giả sử $F(K)$ là \textbf{SAT} với một mô hình thỏa mãn $\mathcal{M}$. Hàm \texttt{decode} lấy ngưỡng $t \in \{0, \dots, n-2\}$ nhỏ nhất có \texttt{y[v, t]} đúng (trong tập \texttt{positive}), hoặc trả về $n - 1$ nếu toàn bộ chuỗi ngưỡng của $v$ đều sai.
+
+\begin{itemize}
+    \item \textbf{Mỗi chuỗi ngưỡng giải mã ra đúng một vị trí (kể cả hai trường hợp biên khi $n \ge 2$):} Do các mệnh đề đơn điệu $(\neg \texttt{y[v, t]} \lor \texttt{y[v, t + 1]})$ ép các giá trị đúng nằm ở một hậu tố liên tiếp trên dãy ngưỡng $t = 0, 1, \dots, n-2$, nên tồn tại duy nhất một giá trị giải mã $p(v) \in \{0, 1, \dots, n-1\}$ tương thích với dãy ngưỡng:
+    \begin{itemize}
+        \item \emph{Trường hợp biên chuỗi toàn đúng (vị trí $0$):} Nếu \texttt{y[v, 0]} đã đúng thì do tính đơn điệu, mọi \texttt{y[v, t]} với $t \in \{0, \dots, n-2\}$ đều đúng; \texttt{decode} chọn ngưỡng nhỏ nhất là $0$, ứng với $p(v) = 0$.
+        \item \emph{Trường hợp biên chuỗi toàn sai (vị trí $n-1$):} Khi $n \ge 2$, nếu mọi \texttt{y[v, t]} với $t \in \{0, \dots, n-2\}$ đều sai (tập \texttt{positive} không chứa ngưỡng nào của $v$), \texttt{decode} trả về giá trị mặc định $n - 1$, ứng với $p(v) = n - 1$ (phù hợp với quy ước ngầm định $p(v) \le n-1$ luôn đúng).
+    \end{itemize}
+    Với mọi giá trị trung gian $p(v) = t^* \in \{1, \dots, n-2\}$, ta có \texttt{y[v, t]} sai với mọi $t < t^*$ và đúng với mọi $t \ge t^*$. Như vậy, mỗi đỉnh $v$ luôn nhận duy nhất một vị trí $p(v) \in \{0, \dots, n-1\}$.
+
+    \item \textbf{Các đỉnh nhận vị trí khác nhau (hoán vị):} Giả sử tồn tại hai đỉnh phân biệt $u \neq v$ cùng được giải mã ra cùng một vị trí $i \in \{0, \dots, n-1\}$. Khi đó cả \texttt{different\_from(u, i, n)} và \texttt{different\_from(v, i, n)} đều có mọi literal đánh giá là sai dưới mô hình $\mathcal{M}$ (vì với $i > 0$ thì \texttt{y[u, i-1]} sai do $p(u) = i > i-1$, và với $i < n-1$ thì \texttt{y[u, i]} đúng do $p(u) = i \le i$ nên \texttt{-y[u, i]} sai; tương tự cho $v$). Điều này mâu thuẫn với mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, i, n)} trong $F(K)$. Vì có $n$ đỉnh nhận giá trị trong tập $n$ phần tử $\{0, \dots, n-1\}$ và đôi một khác nhau, $p$ là một hoán vị hợp lệ.
+
+    \item \textbf{Mọi cạnh đều có khoảng cách vòng $\le K$:} Với $K < \lfloor n/2 \rfloor$, giả sử tồn tại cạnh $(u, v) \in E$ sao cho $d_c(p(u), p(v)) > K$. Đặt $i = p(u)$ và $j = p(v)$. Khi đó mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, j, n)} có mặt trong $F(K)$, nhưng mọi literal của cả hai vế đều sai dưới $\mathcal{M}$ vì $p(u) = i$ và $p(v) = j$ — mâu thuẫn với việc $\mathcal{M}$ thỏa mãn $F(K)$. Với $K \ge \lfloor n/2 \rfloor$, mọi cặp vị trí trên đồ thị $n$ đỉnh đều có khoảng cách vòng $\le \lfloor n/2 \rfloor \le K$. Do đó $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
+\end{itemize}
+
+\subsubsection{Kết luận}
+
+Từ hai chiều trên, với mọi ngưỡng $K \ge 0$ (và $n \ge 2$), công thức $F(K)$ sinh bởi \texttt{order.py} là \textbf{SAT} khi và chỉ khi tồn tại một cách xếp (hoán vị) $p$ các đỉnh của đồ thị sao cho cyclic bandwidth của $p$ không vượt quá $K$.
