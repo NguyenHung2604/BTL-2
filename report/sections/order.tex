@@ -16,7 +16,7 @@ cùng quy ước ngầm định tại hai biên $p(v) \le -1$ luôn sai và $p(v
     \item \textbf{Giới hạn khoảng cách vòng $\le K$:} Khi $K < 0$, công thức trả về mệnh đề rỗng $\square$ (UNSAT). Khi $K \ge \lfloor n/2 \rfloor$, mọi hoán vị đều có khoảng cách vòng tối đa không vượt quá $\lfloor n/2 \rfloor \le K$ nên không cần thêm mệnh đề cạnh. Khi $0 \le K < \lfloor n/2 \rfloor$, với mỗi cạnh $(u, v) \in E$ và mọi cặp vị trí $(i, j)$ thỏa $d_c(i, j) > K$, thêm mệnh đề cấm $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, j, n)$.
 \end{enumerate}
 
-\textbf{Độ phức tạp mã hóa:} Công thức sử dụng chính xác $n(n-1) = \Theta(n^2)$ biến boolean, $n(n-2) = O(n^2)$ mệnh đề đơn điệu, $\binom{n}{2}n = O(n^3)$ mệnh đề All-Different và tối đa $m \cdot n(n - 2K - 1) = O(m \cdot n^2)$ mệnh đề ràng buộc cạnh, cho tổng kích thước CNF là $O(n^3 + m \cdot n^2)$ mệnh đề.
+\textbf{Độ phức tạp mã hóa:} Công thức sử dụng chính xác $n(n-1) = \Theta(n^2)$ biến boolean, $n(n-2) = O(n^2)$ mệnh đề đơn điệu, $\binom{n}{2}n = O(n^3)$ mệnh đề All-Different và tối đa $O(m \cdot n^2)$ mệnh đề ràng buộc cạnh (tương ứng $m \cdot n(n - 2K - 1)$ khi $n$ chẵn và $0 \le K < n/2$), cho tổng kích thước CNF là $O(n^3 + m \cdot n^2)$ mệnh đề.
 
 \subsection{Chứng minh tính đúng đắn và tính tối ưu}
 \begin{theorem}
@@ -35,3 +35,9 @@ Từ hai chiều trên, $F(K)$ là SAT khi và chỉ khi tồn tại cách xếp
 \end{proof}
 
 \textbf{Lập luận tính tối ưu:} Vì $d_c(p(u), p(v)) \le K_1 \implies d_c(p(u), p(v)) \le K_2$ với mọi $K_1 \le K_2$, tính thỏa mãn của $F(K)$ là đơn điệu không giảm theo $K$ trên đoạn $[0, \lfloor n/2 \rfloor]$. Do đó, giá trị $\hat{K}$ tìm được bởi phép duyệt tăng dần (gặp SAT đầu tiên) hoặc tìm kiếm nhị phân thỏa mãn đồng thời $F(\hat{K})$ là SAT và $F(\hat{K} - 1)$ là UNSAT chính là cyclic bandwidth tối ưu toàn cục $K^*$ của đồ thị.
+
+\subsection{Thiết kế thực nghiệm cắt bỏ và kiểm chứng bước đầu}
+Để đánh giá mức đóng góp của từng thành phần mã hóa và chiến lược tìm kiếm ngưỡng $K$ lên kích thước CNF (\texttt{\#Vars}, \texttt{\#Clauses}), thời gian dựng/giải và số lần gọi solver, các biến thể cắt bỏ được thiết kế gồm: bỏ cắt tỉa biên $K \ge \lfloor n/2 \rfloor$, bỏ rút gọn literal biên trong \texttt{different\_from}, so sánh duyệt tuyến tính với tìm kiếm nhị phân trên $[lo, hi]$, và phá vỡ đối xứng xoay vòng trên $C_n$. Trong phép chạy kiểm thử khói ban đầu (\texttt{smoke.jsonl}) trên \texttt{cycle6} ($n=6, m=6$) và \texttt{path5} ($n=5, m=4$), phương pháp \texttt{sat\_order} đạt trạng thái \texttt{OPTIMAL / completed} trong \texttt{0.000s} (tương đồng \texttt{sat\_pairwise}), xác nhận luồng sinh CNF, giải mã và đánh giá vận hành ổn định trước khi mở rộng sang tập đồ thị chuẩn và thực tế.
+
+\subsection{Đối chiếu với mô hình CPLEX-CP}
+Bên cạnh mã hóa Order (\texttt{sat\_order}) chuyển bài toán quyết định ngưỡng $K$ về dạng CNF, hướng tiếp cận CPLEX-CP (\texttt{docplex.cp}) mô hình hóa trực tiếp biến vị trí nguyên trên tập chỉ số đỉnh và điều kiện khoảng cách vòng trong bộ giải ràng buộc (Constraint Programming), cho phép đối chiếu chéo giá trị băng thông tối ưu và thời gian giải giữa hai mô hình trên cùng tập đồ thị kiểm thử. Trong cấu hình môi trường hiện tại, \texttt{docplex} khả dụng cho nhánh CPLEX-CP trong khi gói \texttt{cplex} phục vụ nhánh MIP chưa được cài đặt ở môi trường thực thi, do đó \texttt{sat\_order} và \texttt{cplex\_cp} đóng vai trò hai nhánh đối chiếu trực tiếp trên các đồ thị kiểm thử cơ sở như \texttt{cycle6} ($n=6, m=6$) và \texttt{path5} ($n=5, m=4$).
