@@ -1,0 +1,3 @@
+graph_id,sat_order,sat_pairwise,pairwise_proven,order_proven,outcome
+bcsstk01,60.03141139994841,60.02631979994476,False,False,neither proven
+jgl009,5.2600051276385784e-05,0.0779999999795109,True,True,both optimal

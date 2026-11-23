@@ -46,5 +46,11 @@ again by the independent graph validator, which verifies that the labels form a
 permutation and recomputes the maximum cyclic edge distance. A feasible
 incumbent is not reported as optimal unless the solver proves optimality.
 
-% The CP-SAT and CPLEX CP formulations are documented by their respective
-% implementation owners after their adapters pass the shared validation suite.
+\subsection{Constraint programming baselines}
+Both CP engines assign distinct integer positions to vertices. OR-Tools CP-SAT
+introduces an absolute difference and a cyclic distance for each edge, then
+minimizes their maximum. IBM CP Optimizer uses the same distance expression
+and a shared integer upper bound on all edge distances. CP Optimizer starts
+with a validated identity permutation and the degree lower bound; its native
+search receives the remaining wall-clock budget after model construction.
+The runner verifies each returned permutation and recomputes its objective.

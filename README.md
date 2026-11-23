@@ -42,7 +42,7 @@ foreach ($engine in 'cp_sat','cplex_cp','cplex_mip','gurobi_mip') {
 .\.venv\Scripts\python scripts/solve.py data/toy/cycle6.json --method gurobi_mip --time-limit-seconds 10
 ```
 
-Hai encoding SAT, CPLEX MIP và Gurobi MIP chạy được qua CLI và benchmark. CP-SAT và CPLEX CP hiện có ví dụ kiểm tra engine. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
+Cả sáu phương pháp chạy được qua CLI và benchmark. Smoke dùng hai đồ thị nhỏ, cho 12 lượt. CPLEX CP cần CP Optimizer trên PATH. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
 
 ~~~powershell
 .\.venv\Scripts\python scripts/benchmark.py --config configs/smoke.json
@@ -50,6 +50,16 @@ Hai encoding SAT, CPLEX MIP và Gurobi MIP chạy được qua CLI và benchmark
 .\.venv\Scripts\python scripts/benchmark.py --config configs/benchmark.json --dry-run
 .\.venv\Scripts\python scripts/benchmark.py --config configs/mip_pilot.json --dry-run
 ~~~
+
+Để tái hiện pilot sáu phương pháp có giới hạn 1 GiB trên Windows và thí nghiệm symmetry/incremental:
+
+~~~powershell
+.\.venv\Scripts\python -m pip install -e ".[windows-memory]"
+.\.venv\Scripts\python scripts/benchmark.py --config configs/benchmark_day8_pilot.json --windows-job-memory-mib 1024
+.\.venv\Scripts\python scripts/sat_ablation.py --output results/raw/week8_ablation.jsonl
+~~~
+
+Giới hạn Windows áp cho tổng bộ nhớ cam kết của runner và các tiến trình con. Cấu hình chính dùng 300 giây cho mỗi phương pháp trên mỗi đồ thị. Các batch mới ghi vào `results/raw/`.
 
 `mip_smoke.json` kiểm tra riêng hai adapter MIP trên hai đồ thị toy; `mip_pilot.json` kiểm tra edition/license trên các ma trận Harwell–Boeing.
 
@@ -60,6 +70,12 @@ Cài thêm dependency hình bằng:
 ~~~powershell
 .\.venv\Scripts\python -m pip install -e ".[plots]"
 .\.venv\Scripts\python scripts/plot_results.py --input results/mip_pilot.jsonl --manifest data/manifest.csv --output-dir results/mip_pilot_summary
+~~~
+
+Để xuất bảng sáu phương pháp trực tiếp vào báo cáo sau một batch:
+
+~~~powershell
+.\.venv\Scripts\python scripts/plot_results.py --input results/raw/six_method_benchmark.jsonl --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex
 ~~~
 
 Script giữ nguyên các trạng thái lỗi/timeout và chỉ vẽ so sánh khi log có đủ dữ liệu; `--check-only` chỉ sinh bảng CSV, không cần `cnsplots`.

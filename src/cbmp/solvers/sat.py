@@ -44,7 +44,10 @@ def decide(graph: Graph, encoding: str, k: int, time_limit_seconds: float) -> De
         return Decision("UNKNOWN", num_variables=expected_vars)
 
     build_started = perf_counter()
-    clauses, metadata = encoder.build(graph, k)
+    try:
+        clauses, metadata = encoder.build(graph, k, deadline=deadline)
+    except TimeoutError:
+        return Decision("UNKNOWN", build_time=perf_counter() - build_started)
     build_time = perf_counter() - build_started
     if encoding == "pairwise":
         num_variables = graph.n * graph.n
@@ -59,7 +62,13 @@ def decide(graph: Graph, encoding: str, k: int, time_limit_seconds: float) -> De
             num_clauses=num_clauses,
         )
 
-    with Glucose3(bootstrap_with=clauses) as solver:
+    with Glucose3() as solver:
+        for offset in range(0, len(clauses), 1024):
+            if perf_counter() >= deadline:
+                return Decision("UNKNOWN", build_time=perf_counter() - build_started,
+                                num_variables=num_variables, num_clauses=num_clauses)
+            solver.append_formula(clauses[offset:offset + 1024])
+        build_time = perf_counter() - build_started
         remaining = deadline - perf_counter()
         if remaining <= 0:
             return Decision(

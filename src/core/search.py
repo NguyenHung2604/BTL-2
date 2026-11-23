@@ -55,7 +55,7 @@ def run_solver(implementation, method, package, graph_id, n, edges, config, seed
                   solver_version=solver_version, status="FEASIBLE", incumbent=best,
                   lower_bound=lower, optimality_proven=False, labeling=labels,
                   build_time=0.0, solve_time=0.0, total_time=0.0, num_vars=0,
-                  num_clauses=0 if method == "sat_pairwise" else None,
+                  num_clauses=0 if method in ("sat_pairwise", "sat_order") else None,
                   termination_reason="timeout", commit_hash=commit, history=[],
                   seed=seed, threads=threads)
     if best > lower and monotonic() < deadline:

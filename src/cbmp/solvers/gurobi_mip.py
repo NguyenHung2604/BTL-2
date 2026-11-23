@@ -229,7 +229,9 @@ def solve_gurobi(
         result["error_message"] = str(exc)
         message = str(exc).lower()
         error_code = getattr(exc, "errno", None)
-        if "license" in message or error_code in (10009, 10010):
+        if isinstance(exc, MemoryError) or error_code == 10001 or "out of memory" in message:
+            result["termination_reason"] = "OOM"
+        elif "license" in message or error_code in (10009, 10010):
             result["termination_reason"] = "license_error"
 
     finally:

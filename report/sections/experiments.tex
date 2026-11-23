@@ -53,8 +53,7 @@ Table A.2 as candidates; a candidate is added to the selected manifest only
 after its raw file, normalized graph, and checksums have been verified.
 
 \subsection{Pilot protocol and observed outcomes}
-The day-8 pilot covers three verified graphs and the five methods currently
-available to the runner: pairwise SAT, order SAT, CP-SAT, CPLEX MIP, and
+The day-8 pilot covers three verified graphs and the five methods available in the original run: pairwise SAT, order SAT, CP-SAT, CPLEX MIP, and
 Gurobi MIP. Each planned run has a 60-second end-to-end wall-clock budget,
 one thread, and seed zero. The run log contains 15 records. The results below
 are pilot observations, not the final full benchmark. In the table, OPT means
@@ -94,8 +93,7 @@ or algorithmic timeouts. On BP 400, both MIP models are rejected before solver
 startup because the estimated formulation contains 2,712,872,904
 constraints. Accordingly, no MIP objective value or runtime is reported.
 
-The CPLEX CP method is not part of these 15 runs. Its adapter is still a stub
-and the CP Optimizer executable was not available in the tested environment.
+The CPLEX CP method is not part of these 15 runs. CP Optimizer became available in the subsequent six-method run.
 The pilot therefore evaluates five methods, not all six methods in the
 project plan. The 28 Harwell--Boeing candidates are recorded as candidates,
 but the current verified manifest contains only JGL009, BCSSTK01, and BP 400;
@@ -103,23 +101,21 @@ results must be described as a three-instance subset, not as a complete
 28-instance benchmark.
 
 \subsection{Main benchmark protocol}
-The planned main-benchmark budget is 300 seconds per instance and method,
-including model construction and all optimization calls, with one thread where
-supported. The same manifest and hardware are used across methods. The final
-report must state the CPU, RAM, operating system, Python version, solver
-versions, seed, thread count, and the exact time and memory limits. These host
-and solver details are to be copied from the actual run logs before submission;
-they are intentionally not inferred here.
+The six-method rerun used an AMD Ryzen 5 5600H with 15.4 GiB of
+OS-visible RAM, Windows 11 Home (build 26300), and Python 3.12.3.
+Each instance--method pair had a 300-second target including model construction,
+one requested solver thread, and seed zero where supported. Cleanup and
+native solver return can add elapsed time beyond the target. The separate
+60-second pilot limited total Windows job committed memory to 1024 MiB
+for the runner and its children. The 300-second run used model-size guards
+without that memory cap. Some runs overlapped other local work; elapsed
+times here describe these runs and are unsuitable for a speed ranking.
 
 The benchmark runner stores one JSON object per run in JSONL format and
 supports resuming completed runs. It preserves failures and distinguishes
 solver status (optimal, feasible, or no solution) from termination reason
 (completed, timeout, out-of-memory, license error, or other error). Every
-reported incumbent is independently validated. The six-method comparison is
-not yet complete: the current pilot covers five methods, while CPLEX CP is
-unavailable. The two MIP backends also fail on the selected non-toy instances
-because the installed solver editions impose model-size limits. These
-limitations are reported explicitly; no six-method result is claimed.
+reported incumbent is independently validated. The original five-method results below retain the license and size-limit outcomes of that environment. The separate six-method run adds CP Optimizer and records the outcomes on the current machine.
 
 \subsection{Results reporting}
 The plotting script regenerates dataset and run-summary CSV files and uses
@@ -128,9 +124,8 @@ the available records: status counts, a cactus plot of instances with proven
 optimality, a matched pairwise-versus-order runtime scatter plot, and a
 model-size plot when the required measurements exist. Missing measurements
 are left missing rather than imputed. The day-8 pilot outcomes are summarized in Table~\ref{tab:day8-pilot}.
-The 300-second main benchmark has completed for all 15 configured
+The original 300-second benchmark completed all 15 configured
 instance--method pairs. Its outcomes are summarized in
 Table~\ref{tab:main-benchmark-outcomes}. The generated CSV summaries
 are retained alongside the source JSONL log for reproducibility.
-Performance conclusions remain limited by the three-instance dataset
-and the unavailable MIP and CPLEX CP backends.
+Performance conclusions remain limited by the three-instance dataset and the license or model-size limits recorded for individual runs.

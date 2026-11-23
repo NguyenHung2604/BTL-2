@@ -35,7 +35,7 @@ from cbmp.models.mip import MIPFormulation  # noqa: E402
 from cbmp.result import append_jsonl, normalize_result, read_jsonl  # noqa: E402
 from cbmp.solvers.cplex_mip import solve_cplex  # noqa: E402
 from cbmp.solvers.gurobi_mip import solve_gurobi  # noqa: E402
-from cbmp.validator import validated_bandwidth  # noqa: E402
+from cbmp.validator import certify_record  # noqa: E402
 
 
 SOLVER_REGISTRY: dict[str, Callable[..., dict[str, Any]]] = {
@@ -195,6 +195,8 @@ def _run_key(record: dict[str, Any]) -> tuple[Any, ...]:
         record.get("threads"),
         record.get("time_limit"),
         record.get("commit_hash"),
+        record.get("windows_job_memory_mib"),
+        record.get("source_sha256"),
     )
 
 
@@ -204,6 +206,7 @@ def run_benchmark(
     output_override: Path | None = None,
     resume_override: bool | None = None,
     dry_run: bool = False,
+    windows_job_memory_mib: int | None = None,
 ) -> int:
     base_dir = config_path.resolve().parent.parent
     instances = config.get("instances")
@@ -266,7 +269,7 @@ def run_benchmark(
     if not isinstance(planned_methods, list):
         raise ValueError("planned_methods must be a list when provided")
 
-    supported_methods = set(SOLVER_REGISTRY) | {"sat_pairwise", "sat_order", "cp_sat"}
+    supported_methods = set(SOLVER_REGISTRY) | {"sat_pairwise", "sat_order", "cp_sat", "cplex_cp"}
     unknown = sorted(set(methods) - supported_methods)
     if unknown:
         raise ValueError(
@@ -278,6 +281,11 @@ def run_benchmark(
     old_records = read_jsonl(output_path) if resume and output_path.exists() else []
     done = {_run_key(record) for record in old_records}
     commit_hash = _git_commit_hash()
+    digest = hashlib.sha256()
+    for source in [Path(__file__), *sorted(SRC_ROOT.rglob("*.py"))]:
+        digest.update(source.relative_to(REPO_ROOT).as_posix().encode() + b"\0")
+        digest.update(source.read_bytes().replace(b"\r\n", b"\n") + b"\0")
+    source_sha256 = digest.hexdigest()
 
     planned = len(loaded_instances) * len(methods)
     completed = 0
@@ -295,7 +303,7 @@ def run_benchmark(
 
         for method in methods:
             sat_method = method in ("sat_pairwise", "sat_order")
-            cp_sat_method = method == "cp_sat"
+            cp_method = method in ("cp_sat", "cplex_cp")
             metadata = {
                 "graph_id": instance["graph_id"],
                 "graph_checksum": instance["graph_checksum"],
@@ -313,14 +321,17 @@ def run_benchmark(
                 "method": method,
                 "encoding": (
                     method.removeprefix("sat_") if sat_method
-                    else "integer_position" if cp_sat_method
+                    else "integer_position" if cp_method
                     else None
                 ),
                 "seed": seed,
                 "threads": threads,
                 "time_limit": float(time_limit),
                 "commit_hash": commit_hash,
+                "source_sha256": source_sha256,
             }
+            if windows_job_memory_mib is not None:
+                metadata["windows_job_memory_mib"] = windows_job_memory_mib
             key_record = dict(metadata)
             if resume and _run_key(key_record) in done:
                 print(f"[SKIP] {instance['graph_id']} / {method}: already in JSONL")
@@ -350,6 +361,9 @@ def run_benchmark(
                         f"[DRY] {method}: n={n}, m={len(edges)}, "
                         f"vars~{sat_variables:,}, clauses<={sat_clauses:,}"
                     )
+                continue
+            if dry_run and cp_method:
+                print(f"[DRY] {instance['graph_id']} / {method}: n={n}, m={len(edges)}")
                 continue
             if dry_run:
                 if mip_method and max_constraints is not None and estimated_constraints > max_constraints:
@@ -452,8 +466,11 @@ def run_benchmark(
                                 "decision_history": result.decision_history,
                                 "solver_version": result.solver_version,
                             }
-                    elif cp_sat_method:
-                        from cbmp.solvers.cp_sat import solve
+                    elif cp_method:
+                        if method == "cplex_cp":
+                            from cbmp.solvers.cplex_cp import solve_cplex_cp
+                        else:
+                            from cbmp.solvers.cp_sat import solve
 
                         graph = Graph(instance["graph_id"], n, tuple(edges))
                         preparation_time = monotonic() - run_started
@@ -471,8 +488,12 @@ def run_benchmark(
                                 "solve_time": 0.0,
                                 "total_time": preparation_time,
                             }
+                        elif method == "cplex_cp":
+                            adapter_result = solve_cplex_cp(graph.name, graph.n, graph.edges,
+                                                            metadata, seed, remaining_time, threads)
+                            adapter_result["build_time"] += preparation_time
                         else:
-                            result = solve(graph, remaining_time)
+                            result = solve(graph, remaining_time, seed=seed, threads=threads)
                             adapter_result = {
                                 "status": result.status,
                                 "termination_reason": result.termination_reason,
@@ -516,20 +537,7 @@ def run_benchmark(
                             )
                     # Validate every incumbent independently at the runner boundary.
                     validation_started = monotonic()
-                    labels = adapter_result.get("labeling")
-                    if labels is not None:
-                        actual_bandwidth = validated_bandwidth(n, edges, labels)
-                        claimed_bandwidth = adapter_result.get("incumbent")
-                        if claimed_bandwidth is not None and float(claimed_bandwidth) != actual_bandwidth:
-                            raise ValueError(
-                                f"Solver claimed bandwidth {claimed_bandwidth}, "
-                                f"validator computed {actual_bandwidth}"
-                            )
-                        adapter_result["incumbent"] = actual_bandwidth
-                    elif adapter_result.get("status") in {"OPTIMAL", "FEASIBLE"}:
-                        raise ValueError("Solver reported a solution status without a labeling")
-                    if adapter_result.get("status") == "OPTIMAL" and not adapter_result.get("optimality_proven", False):
-                        raise ValueError("Solver reported OPTIMAL without an optimality proof flag")
+                    certify_record(adapter_result, n, edges)
                     validation_time = monotonic() - validation_started
                     adapter_result["validation_time"] = validation_time
                     adapter_total = adapter_result.get("total_time")
@@ -545,7 +553,7 @@ def run_benchmark(
                     record = normalize_result(
                         {
                             "status": "NO_SOLUTION",
-                            "termination_reason": "error",
+                            "termination_reason": "OOM" if isinstance(exc, MemoryError) else "error",
                             "optimality_proven": False,
                             "incumbent": None,
                             "lower_bound": None,
@@ -555,8 +563,8 @@ def run_benchmark(
                             "build_time": None,
                             "solve_time": None,
                             "total_time": elapsed,
-                            "num_variables": estimated_variables,
-                            "num_constraints": estimated_constraints,
+                            "num_variables": estimated_variables if mip_method else None,
+                            "num_constraints": estimated_constraints if mip_method else None,
                             "error_type": type(exc).__name__,
                             "error_message": str(exc),
                         },
@@ -584,7 +592,22 @@ def main() -> int:
     parser.add_argument("--output", type=Path, help="Override JSONL output path")
     parser.add_argument("--no-resume", action="store_true", help="Ignore existing JSONL records")
     parser.add_argument("--dry-run", action="store_true", help="Print planned model sizes without solving")
+    parser.add_argument("--windows-job-memory-mib", type=int,
+                        help="Limit committed memory of the Windows runner and its solver children")
     args = parser.parse_args()
+    if args.windows_job_memory_mib is not None:
+        if sys.platform != "win32" or args.windows_job_memory_mib < 1:
+            parser.error("A Windows job requires Windows and a positive memory budget")
+        import uuid
+        import win32api
+        import win32job
+
+        job = win32job.CreateJobObject(None, str(uuid.uuid4()))
+        info = win32job.QueryInformationJobObject(job, win32job.JobObjectExtendedLimitInformation)
+        info["BasicLimitInformation"]["LimitFlags"] |= win32job.JOB_OBJECT_LIMIT_JOB_MEMORY
+        info["JobMemoryLimit"] = args.windows_job_memory_mib * 1024**2
+        win32job.SetInformationJobObject(job, win32job.JobObjectExtendedLimitInformation, info)
+        win32job.AssignProcessToJobObject(job, win32api.GetCurrentProcess())
 
     config_path = args.config if args.config.is_absolute() else (Path.cwd() / args.config)
     config = _load_config(config_path)
@@ -594,6 +617,7 @@ def main() -> int:
         output_override=args.output,
         resume_override=False if args.no_resume else None,
         dry_run=args.dry_run,
+        windows_job_memory_mib=args.windows_job_memory_mib,
     )
 
 

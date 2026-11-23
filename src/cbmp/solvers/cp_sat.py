@@ -7,6 +7,7 @@ from time import monotonic
 from ortools.sat.python import cp_model
 
 from ..graph import Graph
+from ..manifest import graph_statistics
 from ..objective import bandwidth
 from ..result import SolveResult
 from ..validator import validate_solution
@@ -19,7 +20,7 @@ def _solver_version() -> str:
         return "OR-Tools CP-SAT (version unavailable)"
 
 
-def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
+def solve(graph: Graph, time_limit_seconds: float, *, seed=0, threads=1) -> SolveResult:
     """Minimize cyclic bandwidth within one wall-clock budget.
 
     Each vertex receives a distinct integer position on the cycle. For every
@@ -99,6 +100,8 @@ def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
         )
 
     solver = cp_model.CpSolver()
+    solver.parameters.random_seed = seed
+    solver.parameters.num_search_workers = threads
     solver.parameters.max_time_in_seconds = remaining
     solve_started = monotonic()
     status_code = solver.solve(model)
@@ -119,7 +122,10 @@ def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
             termination_reason = "timeout"
             # CP-SAT's bound is floating point; ceil is the safe integer
             # lower bound for this integer-valued minimization objective.
-            lower_bound = max(0, min(value, int(ceil(solver.best_objective_bound - 1e-6))))
+            degree_bound = (graph_statistics(n, graph.edges)["max_degree"] + 1) // 2
+            lower_bound = max(degree_bound, int(ceil(solver.best_objective_bound - 1e-6)))
+            if lower_bound > value:
+                raise ValueError("CP-SAT bound exceeds validated incumbent")
 
         return SolveResult(
             instance=graph.name,
@@ -136,11 +142,8 @@ def solve(graph: Graph, time_limit_seconds: float) -> SolveResult:
             solver_version=_solver_version(),
         )
 
-    if status_code == cp_model.INFEASIBLE:
-        status = "INFEASIBLE"
-        reason = "completed"
-        lower_bound = None
-    elif status_code == cp_model.MODEL_INVALID:
+    # Every valid input admits the identity permutation.
+    if status_code in (cp_model.INFEASIBLE, cp_model.MODEL_INVALID):
         status = "NO_SOLUTION"
         reason = "error"
         lower_bound = None

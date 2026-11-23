@@ -1,0 +1,16 @@
+method,status,termination_reason,count
+cp_sat,FEASIBLE,timeout,2
+cp_sat,OPTIMAL,completed,1
+cplex_cp,FEASIBLE,timeout,2
+cplex_cp,OPTIMAL,completed,1
+cplex_mip,NO_SOLUTION,error,1
+cplex_mip,NO_SOLUTION,license_error,2
+gurobi_mip,FEASIBLE,timeout,1
+gurobi_mip,NO_SOLUTION,error,1
+gurobi_mip,OPTIMAL,completed,1
+sat_order,FEASIBLE,timeout,1
+sat_order,NO_SOLUTION,error,1
+sat_order,OPTIMAL,completed,1
+sat_pairwise,FEASIBLE,timeout,1
+sat_pairwise,NO_SOLUTION,error,1
+sat_pairwise,OPTIMAL,completed,1

@@ -34,10 +34,10 @@ benchmark runner's one-million-constraint preflight limit rejects that model
 before allocating it. This is a deliberate resource guard, not an optimizer
 result and not evidence that the instance is infeasible. On JGL009 and
 BCSSTK01, both MIP backends were invoked but returned license-related errors
-in the current environment. Consequently, this experiment does not establish
+during the original five-method batch. Consequently, this experiment does not establish
 comparative runtime or solution quality for CPLEX MIP versus Gurobi MIP.
 
-\subsection{Main benchmark outcomes}
+\subsection{Original five-method benchmark outcomes}
 The main batch contains 15 records: three verified graphs and five configured
 methods, with a 300-second end-to-end limit per run and one thread. The
 reported status is separated from the termination reason. In particular,
@@ -77,10 +77,7 @@ Both MIP backends returned license errors on the two smaller graphs. These
 records are retained because they are part of the actual batch, but they
 cannot support a claim about MIP solution quality or speed. The CPLEX CP
 backend is not included in this five-method batch because the CP Optimizer
-engine was unavailable in the execution environment; its implementation and
-validation remain the responsibility of its assigned owner. Therefore, the
-current data are a five-method configured run with incomplete backend
-coverage, not a completed six-method comparison.
+engine was unavailable in that execution environment. The six-method rerun is reported separately.
 
 \subsection{Experimental limitations and interpretation}
 The verified benchmark set currently contains three graphs, not the complete
@@ -91,10 +88,4 @@ Harwell--Boeing/SMTAPE instance and should not be described as one of the 28
 Table A.2 instances. JGL009's source entry count is not interchangeable with
 the 32 unique undirected edges after the project's normalization procedure.
 
-No ranking between the MIP backends is possible from this batch because both
-were blocked by license restrictions. No six-way ranking is possible because
-CPLEX CP was not run. The timeout and preflight-guard records are retained and
-reported as limitations rather than omitted. Future comparisons should use a
-solver environment with suitable licenses and a verified CP Optimizer engine,
-then rerun the same manifest and time-budget protocol before making claims
-about all six methods.
+License and preflight limits restrict comparisons for this historical batch. Only validated incumbents and proven bounds can support statements about solution quality.

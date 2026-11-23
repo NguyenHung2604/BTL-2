@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -20,6 +21,8 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from cbmp.graph import load_graph
+from cbmp.validator import certify_record
 from cbmp.manifest import load_manifest  # noqa: E402
 from cbmp.result import read_jsonl  # noqa: E402
 
@@ -82,6 +85,9 @@ def _summary_rows(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "solver_version": row.get("solver_version"),
             "decision_history": json.dumps(row.get("decision_history"), ensure_ascii=False),
             "peak_memory": row.get("peak_memory"),
+            "raw_termination_reason": row.get("raw_termination_reason"),
+            "solver_lower_bound": row.get("solver_lower_bound"),
+            "windows_job_memory_mib": row.get("windows_job_memory_mib"),
             "seed": row.get("seed"),
             "threads": row.get("threads"),
             "commit_hash": row.get("commit_hash"),
@@ -193,7 +199,8 @@ def _draw_figures(records: list[dict[str, Any]], dataset_rows: list[dict[str, An
             cactus.to_csv(output_dir / "cactus_data.csv", index=False)
 
     # Pairwise-vs-order scatter: matched instances retain timeout/non-proof outcomes.
-    sat = frame[frame["method"].isin(["sat_pairwise", "sat_order"])].copy()
+    sat = frame[frame["method"].isin(["sat_pairwise", "sat_order"])
+                & frame["termination_reason"].isin(["completed", "timeout"])].copy()
     if not sat.empty:
         sat["optimality_proven"] = sat["optimality_proven"].fillna(False).astype(bool)
         time_pivot = sat.pivot_table(index="graph_id", columns="method", values="total_time", aggfunc="median")
@@ -217,15 +224,14 @@ def _draw_figures(records: list[dict[str, Any]], dataset_rows: list[dict[str, An
                 ax.plot([0, maximum], [0, maximum], linestyle="--", linewidth=1)
                 ax.set_xlabel("Pairwise total time (s)")
                 ax.set_ylabel("Order total time (s)")
-                ax.set_title("SAT encoding runtime comparison (all matched runs)")
+                ax.set_title("SAT encoding runtime comparison (matched solver runs)")
                 save(fig, "pairwise_vs_order.svg")
 
     # Keep SAT clauses and MIP constraints separate: these are different units.
     if "num_clauses" in frame.columns:
         sat_size = frame[frame["method"].isin(["sat_pairwise", "sat_order"])].dropna(subset=["num_clauses"]).copy()
+        sat_size = sat_size[pd.to_numeric(sat_size["num_clauses"], errors="coerce") > 0]
         if not sat_size.empty:
-            sat_size["num_clauses"] = pd.to_numeric(sat_size["num_clauses"], errors="coerce")
-            sat_size = sat_size.dropna(subset=["num_clauses"])
             fig, ax = new_figure(470, 325)
             cns.scatterplot(data=sat_size, x="n", y="num_clauses", hue="method", ax=ax)
             ax.set_yscale("log")
@@ -250,11 +256,51 @@ def _draw_figures(records: list[dict[str, Any]], dataset_rows: list[dict[str, An
     return generated
 
 
+def _write_outcomes_tex(path, records, manifest_rows):
+    """Create the six-method table from one verified batch."""
+    methods = {"sat_pairwise": "Pairwise SAT", "sat_order": "Order SAT",
+               "cp_sat": "CP-SAT", "cplex_mip": "CPLEX MIP",
+               "gurobi_mip": "Gurobi MIP", "cplex_cp": "CP Optimizer"}
+    instances = [row["instance"] for row in manifest_rows]
+    by_key = {(r["method"], r["graph_id"]): r for r in records}
+    expected = {(method, name) for method in methods for name in instances}
+    if len(by_key) != len(records) or set(by_key) != expected:
+        raise ValueError("Six-method table requires one run per method and manifest graph")
+    limits = {r["time_limit"] for r in records}
+    if len(limits) != 1:
+        raise ValueError("Mixed time limits in one table")
+    lines = [r"\begin{table}[htbp]", r"\centering\small",
+             rf"\caption{{Six-method rerun, {limits.pop():g} seconds per graph and method. "
+             r"A single value is a proven optimum; brackets give the certified lower bound "
+             r"and the validated incumbent at timeout.}",
+             r"\label{tab:six-method-rerun}",
+             r"\begin{tabular}{l" + "c" * len(instances) + "}", r"\hline",
+             "Method & " + " & ".join(s.replace("_", r"\_") for s in instances) + r" \\", r"\hline"]
+    for method, display_name in methods.items():
+        cells = [display_name]
+        for name in instances:
+            r = by_key[method, name]
+            if r["status"] == "OPTIMAL":
+                cell = str(r["incumbent"])
+            elif r["status"] == "FEASIBLE":
+                cell = f"[{r['lower_bound']:g}, {r['incumbent']:g}]"
+            elif r.get("error_type") == "preflight_model_size_limit":
+                cell = "Size guard"
+            else:
+                cell = r["termination_reason"].replace("_", " ")
+            cells.append(cell)
+        lines.append(" & ".join(cells) + r" \\")
+    lines.extend([r"\hline", r"\end{tabular}", r"\end{table}"])
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input", type=Path, default=REPO_ROOT / "results" / "benchmark.jsonl")
     parser.add_argument("--manifest", type=Path, default=REPO_ROOT / "data" / "manifest.csv")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "results" / "summary")
+    parser.add_argument("--tex-outcomes", type=Path, help="Write a verified six-method LaTeX table")
+    parser.add_argument("--verify-runs", action="store_true", help="Verify witnesses and strengthen bounds from the manifest graphs")
     parser.add_argument("--check-only", action="store_true", help="Write reproducible CSV tables without importing cnsplots")
     args = parser.parse_args()
 
@@ -265,6 +311,18 @@ def main() -> int:
 
     records = read_jsonl(input_path)
     manifest_rows = load_manifest(manifest_path, repo_root=REPO_ROOT)
+    if args.verify_runs or args.tex_outcomes:
+        by_id = {row["instance"]: row for row in manifest_rows}
+        graphs = {name: load_graph(REPO_ROOT / row["graph_path"]) for name, row in by_id.items()}
+        for record in records:
+            name = record["graph_id"]
+            if record.get("graph_checksum") != by_id[name]["normalized_graph_sha256"]:
+                raise ValueError(f"Recorded graph checksum differs from manifest for {name}")
+            record["raw_termination_reason"] = record["termination_reason"]
+            graph = graphs[name]
+            certify_record(record, graph.n, graph.edges)
+    if args.tex_outcomes:
+        _write_outcomes_tex(args.tex_outcomes, records, manifest_rows)
     dataset_rows = _dataset_rows(manifest_rows)
     summary_rows = _summary_rows(records)
     status_rows = _status_rows(records)
@@ -281,12 +339,15 @@ def main() -> int:
         "estimated_num_variables", "estimated_num_constraints", "num_clauses",
         "max_num_clauses", "estimated_num_clauses", "solver_version", "decision_history",
         "peak_memory", "seed", "threads", "commit_hash", "error_type", "error_message",
+        "raw_termination_reason", "solver_lower_bound", "windows_job_memory_mib",
     ])
     _write_csv(output_dir / "status_summary.csv", status_rows,
                ["method", "status", "termination_reason", "count"])
     (output_dir / "metadata.json").write_text(json.dumps({
-        "input": str(input_path),
-        "manifest": str(manifest_path),
+        "input": input_path.relative_to(REPO_ROOT).as_posix() if input_path.is_relative_to(REPO_ROOT) else str(input_path),
+        "input_sha256": hashlib.sha256(input_path.read_bytes()).hexdigest() if input_path.is_file() else None,
+        "manifest": manifest_path.relative_to(REPO_ROOT).as_posix() if manifest_path.is_relative_to(REPO_ROOT) else str(manifest_path),
+        "witnesses_rechecked": bool(args.verify_runs or args.tex_outcomes),
         "num_runs": len(records),
         "num_datasets": len(dataset_rows),
         "plot_library": "cnsplots",

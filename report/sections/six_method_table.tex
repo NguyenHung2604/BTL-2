@@ -1,0 +1,17 @@
+\begin{table}[htbp]
+\centering\small
+\caption{Six-method rerun, 300 seconds per graph and method. A single value is a proven optimum; brackets give the certified lower bound and the validated incumbent at timeout.}
+\label{tab:six-method-rerun}
+\begin{tabular}{lccc}
+\hline
+Method & jgl009 & bcsstk01 & bp\_\_\_400 \\
+\hline
+Pairwise SAT & 4 & [6, 12] & Size guard \\
+Order SAT & 4 & [6, 13] & Size guard \\
+CP-SAT & 4 & [6, 12] & [147, 399] \\
+CPLEX MIP & license error & license error & Size guard \\
+Gurobi MIP & 4 & [6, 15] & Size guard \\
+CP Optimizer & 4 & [6, 12] & [147, 263] \\
+\hline
+\end{tabular}
+\end{table}

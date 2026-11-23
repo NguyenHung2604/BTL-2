@@ -1,23 +1,22 @@
 {
-  "description": "Main benchmark for the five currently runnable methods; CPLEX CP is pending because the CP Optimizer engine/adapter is unavailable.",
+  "description": "Six CBMP methods on the verified Harwell–Boeing dataset.",
   "manifest": "data/manifest.csv",
   "methods": [
     "sat_pairwise",
     "sat_order",
     "cp_sat",
     "cplex_mip",
-    "gurobi_mip"
-  ],
-  "planned_methods": [
+    "gurobi_mip",
     "cplex_cp"
   ],
+  "planned_methods": [],
   "time_limit_seconds": 300,
   "threads": 1,
   "seed": 0,
   "max_constraints": 1000000,
   "max_sat_variables": 1000000,
   "max_sat_clauses": 1000000,
-  "output": "results/benchmark_day8.jsonl",
+  "output": "results/raw/six_method_benchmark.jsonl",
   "resume": true,
   "solver_output": false
 }
