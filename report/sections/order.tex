@@ -1,48 +1,43 @@
-\section{Order encoding}
-% Describe threshold variables, clauses and decoding.
-\subsection{Chứng minh tính đúng đắn của mã hóa Order}
+\section{Mã hóa Order (Order Encoding)}
 
-Xét đồ thị vô hướng $G = (V, E)$ với $|V| = n$ đỉnh (đánh số $0, 1, \dots, n-1$), tập cạnh $E$ và ngưỡng băng thông vòng nguyên $K$. Ký hiệu khoảng cách vòng giữa hai vị trí $i, j \in \{0, 1, \dots, n-1\}$ là
+\subsection{Mô hình hóa và cấu trúc mệnh đề}
+Xét đồ thị vô hướng $G = (V, E)$ với $n = |V|$ đỉnh (đánh số $0, 1, \dots, n-1$), $m = |E|$ cạnh và ngưỡng băng thông vòng nguyên $K$. Khoảng cách vòng giữa hai vị trí $i, j \in \{0, 1, \dots, n-1\}$ được định nghĩa là:
 \[
 d_c(i, j) = \min\big(|i - j|,\; n - |i - j|\big).
 \]
-Trong \texttt{order.py}, với mỗi đỉnh $v \in \{0, \dots, n-1\}$ và ngưỡng $t \in \{0, \dots, n-2\}$, biến mệnh đề dương \texttt{y[v, t]} (tương ứng chỉ số \texttt{threshold(v, t, n)}) mang ý nghĩa:
+Thay vì biểu diễn trực tiếp đỉnh $v$ nằm ở đúng vị trí $i$, \textit{Order Encoding} (\texttt{order.py}) sử dụng các biến mệnh đề ngưỡng $y_{v,t}$ với $v \in \{0, \dots, n-1\}$ và $t \in \{0, \dots, n-2\}$, mang ngữ nghĩa:
 \[
-\texttt{y[v, t]} \iff \big(p(v) \le t\big).
+y_{v,t} \iff \big(p(v) \le t\big),
 \]
-Gọi $F(K)$ là tập mệnh đề CNF sinh bởi \texttt{build(graph, K)} (với $K \ge 0$ và $n \ge 2$). Ta chứng minh rằng $F(K)$ là \textbf{SAT} khi và chỉ khi tồn tại một hoán vị (cách xếp) $p : V \to \{0, 1, \dots, n-1\}$ có cyclic bandwidth không vượt quá $K$, tức $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
+cùng quy ước ngầm định tại hai biên $p(v) \le -1$ luôn sai và $p(v) \le n-1$ luôn đúng. Công thức CNF $F(K)$ gồm ba nhóm ràng buộc chính:
+\begin{enumerate}
+    \item \textbf{Tính đơn điệu (Monotonicity):} Với mỗi $v \in V$ và $t \in \{0, \dots, n-3\}$, mệnh đề $(\neg y_{v,t} \lor y_{v,t+1})$ đảm bảo nếu $p(v) \le t$ thì $p(v) \le t + 1$.
+    \item \textbf{Khác vị trí (All-Different):} Điều kiện $p(v) \neq i$ được mã hóa qua hàm \texttt{different\_from(v, i, n)} dưới dạng $(p(v) \le i-1) \lor (p(v) > i)$, tự động rút gọn thành $\neg y_{v,0}$ tại $i = 0$ và $y_{v,n-2}$ tại $i = n-1$. Với mọi cặp đỉnh $u < v$ và mọi vị trí $i \in \{0, \dots, n-1\}$, mệnh đề $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, i, n)$ cấm hai đỉnh trùng vị trí.
+    \item \textbf{Giới hạn khoảng cách vòng $\le K$:} Khi $K < 0$, công thức trả về mệnh đề rỗng $\square$ (UNSAT). Khi $K \ge \lfloor n/2 \rfloor$, mọi hoán vị đều có khoảng cách vòng tối đa không vượt quá $\lfloor n/2 \rfloor \le K$ nên không cần thêm mệnh đề cạnh. Khi $0 \le K < \lfloor n/2 \rfloor$, với mỗi cạnh $(u, v) \in E$ và mọi cặp vị trí $(i, j)$ thỏa $d_c(i, j) > K$, thêm mệnh đề cấm $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, j, n)$.
+\end{enumerate}
 
-\subsubsection{Chiều thuận: Từ cách xếp sang SAT}
+\textbf{Độ phức tạp mã hóa:} Công thức sử dụng chính xác $n(n-1) = \Theta(n^2)$ biến boolean, $n(n-2) = O(n^2)$ mệnh đề đơn điệu, $\binom{n}{2}n = O(n^3)$ mệnh đề All-Different và tối đa $O(m \cdot n^2)$ mệnh đề ràng buộc cạnh (tương ứng $m \cdot n(n - 2K - 1)$ khi $n$ chẵn và $0 \le K < n/2$), cho tổng kích thước CNF là $O(n^3 + m \cdot n^2)$ mệnh đề.
 
-Giả sử tồn tại một hoán vị hợp lệ $p$ trên $\{0, 1, \dots, n-1\}$ sao cho $d_c(p(u), p(v)) \le K$ với mọi cạnh $(u, v) \in E$. Ta thiết lập phép gán chân lý cho các biến của \texttt{order.py} bằng quy tắc:
-\[
-\texttt{y[v, t]} = \text{True} \iff p(v) \le t, \quad \forall v \in \{0, \dots, n-1\},\; \forall t \in \{0, \dots, n-2\}.
-\]
-Phép gán này thỏa mãn toàn bộ mệnh đề trong $F(K)$ vì các lý do sau:
+\subsection{Chứng minh tính đúng đắn và tính tối ưu}
+\begin{theorem}
+Với mọi đồ thị $G=(V,E)$ có $n \ge 2$ đỉnh và ngưỡng nguyên $K \ge 0$, công thức $F(K)$ là \textbf{SAT} khi và chỉ khi tồn tại một hoán vị $p : V \to \{0, \dots, n-1\}$ sao cho $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
+\end{theorem}
+
+\begin{proof}
+\textbf{Chiều thuận (Từ cách xếp sang SAT):} Giả sử tồn tại hoán vị $p$ đạt $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$. Gán $y_{v,t} = \text{True} \iff p(v) \le t$ cho mọi $v \in \{0, \dots, n-1\}$ và $t \in \{0, \dots, n-2\}$. Vì $p(v) \le t \implies p(v) \le t+1$ nên các mệnh đề đơn điệu đều đúng. Vì $p$ là hoán vị nên với mọi $u \neq v$ và mọi $i$, không thể có $p(u) = p(v) = i$, do đó ít nhất một trong hai vế của mệnh đề All-Different tại vị trí $i$ đánh giá là đúng. Tương tự, với mỗi cạnh $(u,v) \in E$ và cặp $(i, j)$ có $d_c(i,j) > K$, ta luôn có $(p(u), p(v)) \neq (i, j)$, nên mệnh đề cấm cạnh tương ứng được thỏa mãn. Vậy $F(K)$ là SAT.
+
+\textbf{Chiều đảo (Từ SAT về cách xếp):} Giả sử $F(K)$ là SAT với mô hình $\mathcal{M}$. Hàm \texttt{decode} lấy chỉ số $t \in \{0, \dots, n-2\}$ nhỏ nhất có $y_{v,t}$ đúng, hoặc trả về $n-1$ nếu mọi $y_{v,t}$ đều sai:
 \begin{itemize}
-    \item \textbf{Mệnh đề đơn điệu (\texttt{[-var\_map[v, t], var\_map[v, t + 1]]}):} Nếu $p(v) \le t$ thì hiển nhiên $p(v) \le t + 1$, nghĩa là \texttt{y[v, t]} đúng kéo theo \texttt{y[v, t + 1]} đúng. Do đó mọi mệnh đề $(\neg \texttt{y[v, t]} \lor \texttt{y[v, t + 1]})$ đều được thỏa mãn.
-    \item \textbf{Mệnh đề khác vị trí (\texttt{different\_from}):} Với mỗi đỉnh $v$ và vị trí $i \in \{0, \dots, n-1\}$, \texttt{different\_from(v, i, n)} biểu diễn điều kiện $p(v) \neq i$ thông qua các ngưỡng $(p(v) \le i-1)$ khi $i > 0$ và $\neg(p(v) \le i)$ khi $i < n-1$. Vì $p$ là một hoán vị nên với mọi cặp đỉnh phân biệt $(u, v)$ và mọi vị trí $i$, ta không thể có đồng thời $p(u) = i$ và $p(v) = i$; ít nhất một trong hai điều kiện $p(u) \neq i$ hoặc $p(v) \neq i$ đúng, nên mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, i, n)} luôn đúng.
-    \item \textbf{Mệnh đề khoảng cách vòng $\le K$:} Nếu $K \ge \lfloor n/2 \rfloor$, \texttt{build} không phát sinh mệnh đề cấm cặp vị trí nào và mọi $d_c(p(u), p(v)) \le \lfloor n/2 \rfloor \le K$. Nếu $K < \lfloor n/2 \rfloor$, với mọi cạnh $(u, v) \in E$ ta có $d_c(p(u), p(v)) \le K$. Do đó cặp vị trí thực tế $(i, j) = (p(u), p(v))$ không bao giờ rơi vào trường hợp $d_c(i, j) > K$, tức là không vi phạm bất kỳ mệnh đề cấm \texttt{different\_from(u, i, n) + different\_from(v, j, n)} nào.
+    \item \emph{Tính duy nhất của vị trí giải mã và các trường hợp biên:} Do các mệnh đề $(\neg y_{v,t} \lor y_{v,t+1})$, các giá trị đúng của chuỗi ngưỡng tạo thành một hậu tố liên tiếp. Ở hai trường hợp biên khi $n \ge 2$: nếu chuỗi toàn đúng ($y_{v,0} = \text{True}$), ngưỡng nhỏ nhất là $0$ nên $p(v) = 0$; nếu chuỗi toàn sai ($y_{v,t} = \text{False}$ với mọi $t \le n-2$), hàm \texttt{decode} trả về giá trị mặc định $p(v) = n - 1$ (tương thích quy ước $p(v) \le n-1$ luôn đúng). Do đó mỗi đỉnh $v$ nhận duy nhất một vị trí $p(v) \in \{0, \dots, n-1\}$ thỏa mãn $y_{v,t} = \text{True} \iff p(v) \le t$.
+    \item \emph{Tính hoán vị và giới hạn băng thông vòng:} Nếu hai đỉnh $u \neq v$ nhận cùng vị trí $i$, cả hai vế của mệnh đề $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, i, n)$ đều sai dưới $\mathcal{M}$, mâu thuẫn với tính thỏa mãn của $\mathcal{M}$; vậy $p$ là hoán vị. Tương tự, khi $K < \lfloor n/2 \rfloor$, nếu tồn tại cạnh $(u, v) \in E$ có $d_c(p(u), p(v)) > K$ thì mệnh đề cấm ứng với cặp $(p(u), p(v))$ bị vi phạm. Khi $K \ge \lfloor n/2 \rfloor$, bất đẳng thức $d_c(p(u), p(v)) \le \lfloor n/2 \rfloor \le K$ hiển nhiên đúng.
 \end{itemize}
-Vậy $F(K)$ là \textbf{SAT}.
+Từ hai chiều trên, $F(K)$ là SAT khi và chỉ khi tồn tại cách xếp $p$ có cyclic bandwidth $\le K$.
+\end{proof}
 
-\subsubsection{Chiều đảo: Từ SAT về cách xếp}
+\textbf{Lập luận tính tối ưu:} Vì $d_c(p(u), p(v)) \le K_1 \implies d_c(p(u), p(v)) \le K_2$ với mọi $K_1 \le K_2$, tính thỏa mãn của $F(K)$ là đơn điệu không giảm theo $K$ trên đoạn $[0, \lfloor n/2 \rfloor]$. Do đó, giá trị $\hat{K}$ tìm được bởi phép duyệt tăng dần (gặp SAT đầu tiên) hoặc tìm kiếm nhị phân thỏa mãn đồng thời $F(\hat{K})$ là SAT và $F(\hat{K} - 1)$ là UNSAT chính là cyclic bandwidth tối ưu toàn cục $K^*$ của đồ thị.
 
-Ngược lại, giả sử $F(K)$ là \textbf{SAT} với một mô hình thỏa mãn $\mathcal{M}$. Hàm \texttt{decode} lấy ngưỡng $t \in \{0, \dots, n-2\}$ nhỏ nhất có \texttt{y[v, t]} đúng (trong tập \texttt{positive}), hoặc trả về $n - 1$ nếu toàn bộ chuỗi ngưỡng của $v$ đều sai.
+\subsection{Thiết kế thực nghiệm cắt bỏ và kiểm chứng bước đầu}
+Để đánh giá mức đóng góp của từng thành phần mã hóa và chiến lược tìm kiếm ngưỡng $K$ lên kích thước CNF (\texttt{\#Vars}, \texttt{\#Clauses}), thời gian dựng/giải và số lần gọi solver, các biến thể cắt bỏ được thiết kế gồm: bỏ cắt tỉa biên $K \ge \lfloor n/2 \rfloor$, bỏ rút gọn literal biên trong \texttt{different\_from}, so sánh duyệt tuyến tính với tìm kiếm nhị phân trên $[lo, hi]$, và phá vỡ đối xứng xoay vòng trên $C_n$. Trong phép chạy kiểm thử khói ban đầu (\texttt{smoke.jsonl}) trên \texttt{cycle6} ($n=6, m=6$) và \texttt{path5} ($n=5, m=4$), phương pháp \texttt{sat\_order} đạt trạng thái \texttt{OPTIMAL / completed} trong \texttt{0.000s} (tương đồng \texttt{sat\_pairwise}), xác nhận luồng sinh CNF, giải mã và đánh giá vận hành ổn định trước khi mở rộng sang tập đồ thị chuẩn và thực tế.
 
-\begin{itemize}
-    \item \textbf{Mỗi chuỗi ngưỡng giải mã ra đúng một vị trí (kể cả hai trường hợp biên khi $n \ge 2$):} Do các mệnh đề đơn điệu $(\neg \texttt{y[v, t]} \lor \texttt{y[v, t + 1]})$ ép các giá trị đúng nằm ở một hậu tố liên tiếp trên dãy ngưỡng $t = 0, 1, \dots, n-2$, nên tồn tại duy nhất một giá trị giải mã $p(v) \in \{0, 1, \dots, n-1\}$ tương thích với dãy ngưỡng:
-    \begin{itemize}
-        \item \emph{Trường hợp biên chuỗi toàn đúng (vị trí $0$):} Nếu \texttt{y[v, 0]} đã đúng thì do tính đơn điệu, mọi \texttt{y[v, t]} với $t \in \{0, \dots, n-2\}$ đều đúng; \texttt{decode} chọn ngưỡng nhỏ nhất là $0$, ứng với $p(v) = 0$.
-        \item \emph{Trường hợp biên chuỗi toàn sai (vị trí $n-1$):} Khi $n \ge 2$, nếu mọi \texttt{y[v, t]} với $t \in \{0, \dots, n-2\}$ đều sai (tập \texttt{positive} không chứa ngưỡng nào của $v$), \texttt{decode} trả về giá trị mặc định $n - 1$, ứng với $p(v) = n - 1$ (phù hợp với quy ước ngầm định $p(v) \le n-1$ luôn đúng).
-    \end{itemize}
-    Với mọi giá trị trung gian $p(v) = t^* \in \{1, \dots, n-2\}$, ta có \texttt{y[v, t]} sai với mọi $t < t^*$ và đúng với mọi $t \ge t^*$. Như vậy, mỗi đỉnh $v$ luôn nhận duy nhất một vị trí $p(v) \in \{0, \dots, n-1\}$.
-
-    \item \textbf{Các đỉnh nhận vị trí khác nhau (hoán vị):} Giả sử tồn tại hai đỉnh phân biệt $u \neq v$ cùng được giải mã ra cùng một vị trí $i \in \{0, \dots, n-1\}$. Khi đó cả \texttt{different\_from(u, i, n)} và \texttt{different\_from(v, i, n)} đều có mọi literal đánh giá là sai dưới mô hình $\mathcal{M}$ (vì với $i > 0$ thì \texttt{y[u, i-1]} sai do $p(u) = i > i-1$, và với $i < n-1$ thì \texttt{y[u, i]} đúng do $p(u) = i \le i$ nên \texttt{-y[u, i]} sai; tương tự cho $v$). Điều này mâu thuẫn với mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, i, n)} trong $F(K)$. Vì có $n$ đỉnh nhận giá trị trong tập $n$ phần tử $\{0, \dots, n-1\}$ và đôi một khác nhau, $p$ là một hoán vị hợp lệ.
-
-    \item \textbf{Mọi cạnh đều có khoảng cách vòng $\le K$:} Với $K < \lfloor n/2 \rfloor$, giả sử tồn tại cạnh $(u, v) \in E$ sao cho $d_c(p(u), p(v)) > K$. Đặt $i = p(u)$ và $j = p(v)$. Khi đó mệnh đề \texttt{different\_from(u, i, n) + different\_from(v, j, n)} có mặt trong $F(K)$, nhưng mọi literal của cả hai vế đều sai dưới $\mathcal{M}$ vì $p(u) = i$ và $p(v) = j$ — mâu thuẫn với việc $\mathcal{M}$ thỏa mãn $F(K)$. Với $K \ge \lfloor n/2 \rfloor$, mọi cặp vị trí trên đồ thị $n$ đỉnh đều có khoảng cách vòng $\le \lfloor n/2 \rfloor \le K$. Do đó $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
-\end{itemize}
-
-\subsubsection{Kết luận}
-
-Từ hai chiều trên, với mọi ngưỡng $K \ge 0$ (và $n \ge 2$), công thức $F(K)$ sinh bởi \texttt{order.py} là \textbf{SAT} khi và chỉ khi tồn tại một cách xếp (hoán vị) $p$ các đỉnh của đồ thị sao cho cyclic bandwidth của $p$ không vượt quá $K$.
+\subsection{Đối chiếu với mô hình CPLEX-CP}
+Bên cạnh mã hóa Order (\texttt{sat\_order}) chuyển bài toán quyết định ngưỡng $K$ về dạng CNF, hướng tiếp cận CPLEX-CP (\texttt{docplex.cp}) mô hình hóa trực tiếp biến vị trí nguyên trên tập chỉ số đỉnh và điều kiện khoảng cách vòng trong bộ giải ràng buộc (Constraint Programming), cho phép đối chiếu chéo giá trị băng thông tối ưu và thời gian giải giữa hai mô hình trên cùng tập đồ thị kiểm thử. Trong cấu hình môi trường hiện tại, \texttt{docplex} khả dụng cho nhánh CPLEX-CP trong khi gói \texttt{cplex} phục vụ nhánh MIP chưa được cài đặt ở môi trường thực thi, do đó \texttt{sat\_order} và \texttt{cplex\_cp} đóng vai trò hai nhánh đối chiếu trực tiếp trên các đồ thị kiểm thử cơ sở như \texttt{cycle6} ($n=6, m=6$) và \texttt{path5} ($n=5, m=4$).
