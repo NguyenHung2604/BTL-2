@@ -1,4 +1,5 @@
 \section{Experiments}
+\label{sec:experiments}
 
 \subsection{Benchmark graphs and preprocessing}
 The selected benchmark graphs are drawn from the Harwell--Boeing collection.
@@ -115,7 +116,9 @@ The benchmark runner stores one JSON object per run in JSONL format and
 supports resuming completed runs. It preserves failures and distinguishes
 solver status (optimal, feasible, or no solution) from termination reason
 (completed, timeout, out-of-memory, license error, or other error). Every
-reported incumbent is independently validated. The original five-method results below retain the license and size-limit outcomes of that environment. The separate six-method run adds CP Optimizer and records the outcomes on the current machine.
+reported incumbent is independently validated. The five-method, 60-second pilot and the six-method, 300-second run are
+separate experiments. The pilot outcomes are reported above; the six-method
+batch is summarized in the section on MIP and six-method results.
 
 \subsection{Results reporting}
 The plotting script regenerates dataset and run-summary CSV files and uses
@@ -124,8 +127,9 @@ the available records: status counts, a cactus plot of instances with proven
 optimality, a matched pairwise-versus-order runtime scatter plot, and a
 model-size plot when the required measurements exist. Missing measurements
 are left missing rather than imputed. The day-8 pilot outcomes are summarized in Table~\ref{tab:day8-pilot}.
-The original 300-second benchmark completed all 15 configured
-instance--method pairs. Its outcomes are summarized in
-Table~\ref{tab:main-benchmark-outcomes}. The generated CSV summaries
-are retained alongside the source JSONL log for reproducibility.
-Performance conclusions remain limited by the three-instance dataset and the license or model-size limits recorded for individual runs.
+The separate six-method, 300-second batch contains 18 instance--method
+records (three verified graphs by six methods). Its outcomes are summarized
+in Table~\ref{tab:six-method-rerun}. The generated CSV summaries are
+retained alongside the source JSONL log for reproducibility. Performance
+conclusions remain limited by the three-instance dataset and the license,
+timeout, and model-size limits recorded for individual runs.

@@ -1,21 +1,20 @@
-% Add this file with: \input{sections/ninh_hung_results}
-% It is deliberately separate so it can be merged without overwriting
-% the team's existing experiments.tex or baselines.tex.
+% Results and implementation analysis owned by Ninh Ngoc Hung.
+% The historical 60-second pilot is described in experiments.tex;
+% this section reports the shared MIP formulation and the six-method run.
 
 \subsection{MIP model size and scalability}
 The CPLEX MIP and Gurobi MIP adapters use the same assignment-based
 formulation. For a graph with $n$ vertices and $m$ undirected edges, the
-implementation creates $n^2+1$ variables (the $n^2$ binary assignment
-variables and the integer objective variable) and $2n+mn^2$ constraints.
-The constraint count includes all edge--position pairs, including rows whose
-cyclic distance is zero, matching the implementation's model-generation
-loop.
+implementation creates $n^2+1$ variables ($n^2$ binary assignment variables
+and one integer objective variable) and $2n+mn^2$ constraints. The latter
+count follows the implementation's edge--position generation loop, including
+rows for position pairs whose cyclic distance is zero.
 
 \begin{table}[t]
 \centering
 \small
 \caption{Estimated size of the shared MIP formulation on the verified graph
-set. Counts are computed before invoking either solver.}
+set. Counts are computed before invoking either optimizer.}
 \label{tab:mip-model-size}
 \begin{tabular}{lrrrr}
 \hline
@@ -28,64 +27,62 @@ BP 400 & 822 & 4,015 & 675,685 & 2,712,872,904 \\
 \end{tabular}
 \end{table}
 
-The quadratic assignment-variable term and the $mn^2$ distance-row term
-explain why the direct formulation becomes impractical on BP 400. The
-benchmark runner's one-million-constraint preflight limit rejects that model
-before allocating it. This is a deliberate resource guard, not an optimizer
-result and not evidence that the instance is infeasible. On JGL009 and
-BCSSTK01, both MIP backends were invoked but returned license-related errors
-during the original five-method batch. Consequently, this experiment does not establish
-comparative runtime or solution quality for CPLEX MIP versus Gurobi MIP.
+The $n^2$ assignment variables and $mn^2$ edge--position constraints make
+this direct formulation impractical on BP 400. The runner's one-million-
+constraint preflight limit rejects that instance before allocating the MIP
+model. This is a configured resource guard, not an optimizer result, timeout,
+or infeasibility proof. On JGL009 and BCSSTK01, CPLEX MIP returned Community
+Edition license errors. Gurobi MIP, by contrast, proved the JGL009 optimum
+and returned a validated incumbent on BCSSTK01 before its time limit. These
+records do not provide a like-for-like comparison of the two MIP backends on
+both instances because CPLEX could not solve either one under its available
+license.
 
-\subsection{Original five-method benchmark outcomes}
-The main batch contains 15 records: three verified graphs and five configured
-methods, with a 300-second end-to-end limit per run and one thread. The
-reported status is separated from the termination reason. In particular,
-\texttt{FEASIBLE} means that a validated incumbent was found but optimality
-was not proved; \texttt{NO\_SOLUTION} with a license or preflight error is not
-a timeout and must not be interpreted as an infeasibility result.
+\subsection{Six-method benchmark outcomes}
+The main batch contains 18 records: three verified graphs evaluated with six
+methods. Each run used a 300-second target, one requested thread, and seed
+zero where supported. The budget covers model construction and solving; native
+solver shutdown and cleanup can cause the recorded wall time to exceed 300
+seconds slightly. The generated table (Table~\ref{tab:six-method-rerun}) is derived from
+\texttt{results/raw/six\_method\_benchmark.jsonl}; a single numeric value
+is a proven optimum, while $[LB,UB]$ reports the certified lower bound and
+the validated incumbent when optimality was not proved.
 
-\begin{table}[t]
-\centering
-\small
-\caption{Outcome of the 300-second benchmark batch. ``OPT'' denotes an
-optimality proof, ``FEAS'' a feasible incumbent without proof, ``TIME'' a
-timeout, ``LIC'' a license error, and ``GUARD'' a preflight model-size
-rejection before the solver was started.}
-\label{tab:main-benchmark-outcomes}
-\begin{tabular}{lccccc}
-\hline
-Instance & Pairwise SAT & Order SAT & CP-SAT & CPLEX MIP & Gurobi MIP \\
-\hline
-JGL009 & OPT & OPT & OPT & LIC & LIC \\
-BCSSTK01 & FEAS/TIME & FEAS/TIME & OPT & LIC & LIC \\
-BP 400 & GUARD & GUARD & FEAS/TIME & GUARD & GUARD \\
-\hline
-\end{tabular}
-\end{table}
 
-On JGL009, both SAT encodings and CP-SAT proved optimality. On BCSSTK01,
-CP-SAT proved optimality, whereas pairwise SAT and order SAT returned feasible
-incumbents before their time limits expired. On BP 400, CP-SAT returned a
-feasible incumbent but did not prove optimality within 300 seconds. The
-pairwise and order SAT runs were stopped by the configured preflight size
-guard, and both MIP runs were likewise rejected by the MIP constraint-count
-guard. Thus, these four BP 400 outcomes are model-size guard events rather
-than measured solver timeouts.
+On JGL009, pairwise SAT, order SAT, CP-SAT, Gurobi MIP, and CP Optimizer
+proved an optimum of 4; CPLEX MIP terminated with a license error. On
+BCSSTK01, all methods except CPLEX MIP returned validated feasible layouts,
+but none proved optimality within the 300-second target. Their incumbents
+were 12 (pairwise SAT, CP-SAT, and CP Optimizer), 13 (order SAT), and 15
+(Gurobi MIP); the independently certified lower bound was 6. CPLEX MIP
+returned a Community Edition license error. On BP 400, pairwise SAT and
+order SAT were rejected by their estimated-size guards, and both MIP
+adapters were rejected by the one-million-constraint guard before solver
+startup. CP-SAT and CP Optimizer returned validated incumbents of 399 and
+263, respectively, with certified lower bound 147, but neither proved
+optimality within the time limit.
 
-Both MIP backends returned license errors on the two smaller graphs. These
-records are retained because they are part of the actual batch, but they
-cannot support a claim about MIP solution quality or speed. The CPLEX CP
-backend is not included in this five-method batch because the CP Optimizer
-engine was unavailable in that execution environment. The six-method rerun is reported separately.
+A timeout with a feasible incumbent is not an optimality proof. Similarly,
+a license error or a preflight guard is not a timeout and must not be
+reported as solver infeasibility. In particular, the BP 400 SAT/MIP guard
+records have zero solver runtime because the corresponding solver was never
+started. The separate historical 60-second pilot is reported in
+Section~\ref{sec:experiments} and must not be merged with this six-method,
+300-second batch.
 
-\subsection{Experimental limitations and interpretation}
-The verified benchmark set currently contains three graphs, not the complete
-28-instance candidate list from Table A.2 of Ren et al. The selected set
-covers a small dense graph, a medium sparse graph, and a larger sparse graph,
-but is too small to support broad statistical claims. BP 400 is an additional
-Harwell--Boeing/SMTAPE instance and should not be described as one of the 28
-Table A.2 instances. JGL009's source entry count is not interchangeable with
-the 32 unique undirected edges after the project's normalization procedure.
+\subsection{Experimental limitations}
+The verified manifest contains three graphs, not the full 28-instance
+candidate list in Table A.2 of Ren et al. The set provides a small dense,
+medium sparse, and larger sparse example, but is too small for broad
+statistical or scalability claims. BP 400 is an additional Harwell--Boeing /
+SMTAPE instance, not one of the 28 Table A.2 candidates. The graph edge count
+$m$ is the number of unique undirected edges after removing self-loops and
+merging duplicate or opposite-direction entries; it is not the raw matrix
+nonzero count.
 
-License and preflight limits restrict comparisons for this historical batch. Only validated incumbents and proven bounds can support statements about solution quality.
+Comparisons are further limited by solver licensing, the configured model-size
+guards, and the fact that some methods timed out without proving optimality.
+The run records preserve these distinctions. Runtime rankings across the
+three instances would not be meaningful, and conclusions about solution
+quality should be restricted to validated incumbents and certified lower
+bounds.

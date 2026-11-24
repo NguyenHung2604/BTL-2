@@ -12,3 +12,18 @@ bound on the optimum. Every permutation has bandwidth at most
 $\lfloor n/2\rfloor$. A validated layout of value $B$ gives an upper bound.
 Equality with a proven lower bound, or a proof of infeasibility at $B-1$,
 certifies optimality. An interrupted decision leaves that threshold unresolved.
+
+\subsection{Related work}
+Ren et al.~\cite{Ren2020CBMP} use iterated local search to find labelings
+with small cyclic bandwidth. Their algorithm improves a labeling locally
+and uses two perturbation strategies to explore other labelings when the
+search stalls. On 85 benchmark instances with known optima, it matched
+the optimal bandwidth in 82 cases.
+
+A labeling found by local search gives an upper bound $B$. Our pairwise
+and order SAT encodings address the complementary question of whether
+any labeling can improve that bound. At threshold $K=B-1$, a satisfying
+assignment yields a better layout, while an unsatisfiability proof
+certifies that $B$ is optimal. JGL009 and BCSSTK01 also appear in the
+benchmark set of Ren et al. We use them to study the cost of constructing
+the two encodings and the bounds each solver reaches within its time budget.

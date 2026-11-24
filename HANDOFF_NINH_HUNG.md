@@ -1,67 +1,80 @@
-# Handoff — phần dữ liệu, MIP và benchmark của Hưng
-## Đã hoàn thiện trong bản commit này
+# Handoff — phần dữ liệu, MIP, benchmark và báo cáo của Ninh Ngọc Hưng
 
-- Chuẩn hóa tập benchmark đang có bằng một `data/manifest.csv` gồm JGL009, BCSSTK01 và BP 400.
-- Ghi nguồn, raw SHA-256, graph-file SHA-256, normalized-graph SHA-256, `n`, `m`, bậc lớn nhất và số đỉnh cô lập.
-- Ghi BCSSTM01 vào `data/excluded.csv`: sau khi bỏ đường chéo, đồ thị có 48 đỉnh cô lập và 0 cạnh.
-- Lưu danh sách 28 ứng viên Table A.2 trong `data/harwell_boeing_candidates.csv`; các ứng viên chưa có raw file/graph/checksum vẫn ở trạng thái chưa xác minh.
-- Parser Harwell–Boeing đọc được `.gz`; script chuẩn hóa hỗ trợ cả Harwell–Boeing và Matrix Market.
-- Runner xác minh manifest, kiểm tra incumbent độc lập, resume theo dữ liệu/cấu hình/commit, lưu metadata nguồn và phân biệt status với termination reason.
-- SAT runner log lịch sử SAT/UNSAT/UNKNOWN theo từng ngưỡng K, thời gian build/solve, số biến và số clause. MIP runner log số biến/ràng buộc. `src/cbmp/solvers/sat.py` chỉ được bổ sung telemetry, không đổi encoding/thuật toán; Hùng nên review thay đổi giao diện này vì file thuộc phần SAT chung.
-- Bổ sung guard trước khi chạy SAT/MIP để tránh tạo mô hình vượt giới hạn cấu hình.
-- Pilot MIP đặt 60 giây/method/instance; benchmark chính dự kiến 300 giây/method/instance, một luồng.
-- Hoàn thiện pipeline bảng CSV và hình bằng `cnsplots`; có bản nháp phần MIP và Experimental Setup trong LaTeX.
+## Trạng thái snapshot
 
-## Tập dữ liệu hiện khóa
+- Snapshot được rà soát là `BTL-2.zip`, tại commit `c7fa492aedce4706310544ca66a7fbefde53885e` (`feat/ninh-hung-next`, cùng commit với `origin/main-fix`). ZIP chứa working tree có các file đã sửa/chưa commit; vì vậy commit hash xác định HEAD, không có nghĩa working tree sạch.
+- Không chỉnh sửa `report/main.pdf` trong lần rà soát này.
+- Dataset benchmark đã xác minh gồm 3 graph Harwell–Boeing; `bcsstm01` được ghi riêng là trường hợp loại trừ.
 
-| Instance | n | m | Max degree | Vai trò |
-|---|---:|---:|---:|---|
-| JGL009 | 9 | 32 | 8 | Nhỏ, dày |
-| BCSSTK01 | 48 | 176 | 11 | Trung bình |
-| BP 400 | 822 | 4,015 | 294 | Lớn, thưa; kiểm tra giới hạn |
+## Dữ liệu đã xác minh
 
-`m` là số cạnh vô hướng duy nhất sau chuẩn hóa, không phải số nonzero trong ma trận gốc. JGL009 trong Table A.2 báo 50 entries, nhưng đồ thị chuẩn hóa của repo có 32 cạnh. Chỉ so với paper khi đã đối chiếu cùng quy ước.
+| Instance | n | m | Max degree | Isolates | Vai trò |
+|---|---:|---:|---:|---:|---|
+| JGL009 | 9 | 32 | 8 | 0 | Nhỏ, dày |
+| BCSSTK01 | 48 | 176 | 11 | 0 | Trung bình, thưa |
+| BP 400 | 822 | 4,015 | 294 | 0 | Lớn, thưa; kiểm tra giới hạn |
 
-## Pilot dry-run và solver run thực tế
+`m` là số cạnh vô hướng duy nhất sau chuẩn hóa: bỏ self-loop, gộp cạnh trùng/đối xứng và giữ đỉnh cô lập. Không đồng nhất `m` với số nonzero/entries của ma trận gốc. JGL009 có 50 entries theo nguồn nhưng graph chuẩn hóa trong repo có 32 cạnh. Candidate list 28 tên không có nghĩa đã xác minh đủ 28 graph.
 
-- JGL009: MIP 82 biến, 2,610 ràng buộc.
-- BCSSTK01: MIP 2,305 biến, 405,600 ràng buộc.
-- BP 400: MIP 2,712,872,904 ràng buộc, bị chặn trước khi dựng model bởi `max_constraints=1,000,000`.
-- Pilot thật tại commit `71d4baf`: Gurobi 14.0.0 và CPLEX 22.2.0.0 đều đã được gọi trên JGL009 và BCSSTK01, nhưng cả hai trả `license_error`.
-  - Gurobi: `Model too large for size-limited license`.
-  - CPLEX: Error 1016, `Community Edition. Problem size limits exceeded`.
-  - Đây là giới hạn edition/license, không phải timeout, infeasible hay bằng chứng mô hình sai.
-- Các dòng BP 400 có `error_type=preflight_model_size_limit`; solver chưa được khởi chạy.
-- `results/smoke.jsonl` có kết quả OPTIMAL cho `path5` và `cycle6` trên cả hai MIP, nhưng các record mang `commit_hash=778db217`, không phải commit hiện tại `71d4baf`. Cần chạy lại smoke ở commit hiện tại trước khi dùng làm bằng chứng nghiệm thu của snapshot này.
+## MIP formulation và kết quả
 
-## Kiểm thử trong môi trường rà soát
+Hai adapter CPLEX MIP và Gurobi MIP dùng chung assignment formulation. Với `n` đỉnh và `m` cạnh vô hướng:
 
-- `compileall`: thành công.
-- Các test không phụ thuộc Python-SAT được chạy lại: 83 passed, 22 subtests passed.
-- Full suite trong môi trường rà soát không thu thập được hai module SAT vì môi trường này thiếu `python-sat`; trên máy Windows của Hưng đã có lần chạy full suite 113 passed, 22 subtests passed.
-- Manifest benchmark và excluded: hợp lệ (3 benchmark, 1 excluded).
-- MIP pilot dry-run và main benchmark dry-run: thành công; main config có 12 lượt cho 4 phương pháp hiện kích hoạt, CP-SAT và CPLEX CP vẫn đang là phương pháp pending.
-- Plot `--check-only`: sinh bảng CSV cho 6 record pilot và 3 dataset.
-- Package `cnsplots` chưa được cài/chạy thật trong môi trường rà soát. Đã bổ sung extra `plots` vào `pyproject.toml` để lệnh cài đặt trong handoff hoạt động.
-- Bổ sung sơ đồ CBMP tĩnh tại `report/figures/cbmp_circular_layout.pdf` để báo cáo không thiếu hình. `pdflatex` biên dịch qua được phần nội dung (4 trang); chưa xác nhận bibliography hoàn chỉnh vì `bibtex` trong môi trường rà soát bị lỗi quyền thực thi.
+- Số biến: `n^2 + 1`.
+- Số ràng buộc: `2n + mn^2` theo cách sinh model hiện tại.
 
-## Việc cần nhóm trưởng/Đức tiếp tục
+| Instance | Variables | Constraints |
+|---|---:|---:|
+| JGL009 | 82 | 2,610 |
+| BCSSTK01 | 2,305 | 405,600 |
+| BP 400 | 675,685 | 2,712,872,904 |
 
-- CP-SAT và CPLEX CP hiện vẫn là adapter `NotImplementedError`; cổng ngày 7 cho đủ sáu phương pháp chưa đạt. Không chạy batch chính thức sáu phương pháp trước khi hai adapter này hoàn thiện và qua kiểm chứng nhỏ.
-- Sau khi cài `cnsplots`, chạy script sinh hình từ JSONL thật.
-- Mở rộng manifest từ candidate list chỉ sau khi tải raw matrix, chuẩn hóa, kiểm checksum và xác nhận đúng đồ thị.
-- Nhờ Hùng/Đức chạy `mip_smoke.json` trên máy có solver; sau đó chạy `mip_pilot.json` để xác nhận license đủ quyền cho model Harwell–Boeing (toy smoke có thể chạy được cả với license giới hạn).
+BP 400 bị preflight guard chặn trước khi tạo model vì vượt ngưỡng 1,000,000 constraints; đây không phải kết quả solver, timeout hay infeasibility. Trong batch sáu phương pháp, CPLEX MIP gặp license error trên JGL009 và BCSSTK01; Gurobi MIP chứng minh tối ưu JGL009 và tìm incumbent 15 trên BCSSTK01 nhưng không chứng minh tối ưu trong ngân sách chạy.
 
-## Lệnh trên máy Windows
+## Batch benchmark chính — 300 giây/lượt
 
-```cmd
-py -3.14 -m pip install -e ".[plots]"
-py -3.14 -m pytest tests -v
+Nguồn: `results/raw/six_method_benchmark.jsonl`, 18 record (3 graph × 6 phương pháp), một luồng.
+
+| Method | JGL009 | BCSSTK01 | BP 400 |
+|---|---:|---:|---:|
+| Pairwise SAT | 4 (OPT) | [6, 12] | SAT size guard |
+| Order SAT | 4 (OPT) | [6, 13] | SAT size guard |
+| CP-SAT | 4 (OPT) | [6, 12] | [147, 399] |
+| CPLEX MIP | License error | License error | MIP size guard |
+| Gurobi MIP | 4 (OPT) | [6, 15] | MIP size guard |
+| CP Optimizer | 4 (OPT) | [6, 12] | [147, 263] |
+
+Các cặp `[LB, UB]` dùng lower bound được chứng nhận độc lập và incumbent đã được validator kiểm tra. Timeout/FEASIBLE không phải chứng minh tối ưu. License error và size guard không được xem là timeout hay kết quả chất lượng nghiệm.
+
+## Smoke mới trên máy Windows của người dùng
+
+Nguồn: `results/raw/six_method_smoke_fresh.jsonl`, 12 record trên `cycle6` và `path5`:
+
+- 10 lượt `OPTIMAL`.
+- 2 lượt CPLEX CP có `NO_SOLUTION`/error do không tìm thấy chương trình `cpoptimizer` trên PATH.
+- Đây là lỗi thiếu executable trong môi trường smoke, không phải bài toán vô nghiệm. Các lần kiểm tra engine khác trên máy người dùng đã xác nhận CP-SAT, CPLEX MIP và Gurobi MIP trả `OPTIMAL` trên toy.
+
+## Kiểm chứng và giới hạn môi trường
+
+- Trên máy Windows của người dùng: full test suite báo **141 passed, 22 subtests passed**; manifest validator xác nhận 3 benchmark graph và 1 graph bị loại; `plot_results.py --check-only --verify-runs` đọc 18 lượt và 3 dataset.
+- Trong lần rà soát ZIP ở môi trường hiện tại: `scripts/validate_manifest.py` đạt; `plot_results.py --check-only --verify-runs` đạt và bảng LaTeX sinh lại khớp nội dung hiện tại. Full pytest không thể thu thập vì môi trường rà soát thiếu `ortools` và `pysat`; đây không phải kết quả test thất bại của code trên máy Windows.
+- Đã tái chạy từ checkout sạch tại commit `f8f56a7` trên Windows, dùng lại môi trường Python của dự án. Thêm `D:\cpoptimizer\bin\x64_win64` vào PATH của phiên chạy rồi chạy `python scripts/benchmark.py --config configs/smoke.json --output <log-moi> --no-resume`. Cả 6 phương pháp trên cycle6 và path5 đạt OPTIMAL, cận dưới và bandwidth đều bằng 1. Log ở `results/raw/six_method_smoke_clean_f8f56a7.jsonl`.
+- Kết quả CP Optimizer bandwidth 12 trong pilot 60 giây cần trưởng nhóm xác nhận nguồn/log trước khi sửa hoặc diễn giải lại đoạn báo cáo liên quan.
+
+## Việc bàn giao còn lại
+
+1. Xác nhận với trưởng nhóm nguồn kết quả CP Optimizer bandwidth 12 của pilot 60 giây.
+2. Smoke từ checkout sạch đã đạt 12/12 tại commit `f8f56a7`.
+3. Chốt nội dung README và gói dữ liệu/log cuối cùng.
+4. Tạo lại và xác minh `CHECKSUMS.sha256` sau khi tất cả file đã chốt.
+
+## Lệnh tái kiểm tra trên Windows
+
+```powershell
+py -3.14 -m pip install -e ".[dev,engines,plots]"
+py -3.14 -m pytest -q
 py -3.14 scripts\validate_manifest.py
-py -3.14 scripts\benchmark.py --config configs\mip_smoke.json --no-resume
-py -3.14 scripts\benchmark.py --config configs\mip_pilot.json --dry-run
-py -3.14 scripts\benchmark.py --config configs\mip_pilot.json --no-resume
-py -3.14 scripts\plot_results.py --input results\mip_pilot.jsonl --manifest data\manifest.csv --output-dir results\mip_pilot_summary
+py -3.14 scripts\plot_results.py --input results\raw\six_method_benchmark.jsonl --manifest data\manifest.csv --output-dir results\summary\week8_main --verify-runs --tex-outcomes report\sections\six_method_table.tex --check-only
 ```
 
-`mip_smoke.json` chỉ xác nhận adapter hoạt động trên toy; `mip_pilot.json` mới kiểm tra license có chạy được mô hình Harwell–Boeing hay không. Chỉ chạy `configs/benchmark.json` sau khi nhóm xác nhận đủ sáu phương pháp và cổng tích hợp đã đạt.
+Để chạy smoke mới, dùng output JSONL riêng. Không chạy nối vào `results/raw/six_method_smoke.jsonl` nếu muốn giữ log cũ.

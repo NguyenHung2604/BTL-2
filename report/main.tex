@@ -42,17 +42,8 @@ Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programmi
 \input{sections/experiments}
 \input{sections/ninh_hung_results}
 
-\subsection{Six-method rerun}
-Table~\ref{tab:six-method-rerun} uses the three verified graphs and the
-300-second run records. Every layout was rechecked against its graph
-checksum. Reported lower bounds include the independent degree bound.
-The original five-method experiment and the rerun used different solver
-environments and settings; their proof statuses are reported separately.
-On JGL009, Gurobi and CP Optimizer both certified 4 in the rerun. On
-BCSSTK01, both CP engines reached bandwidth 12. The memory-limited
-60-second pilot recorded a Gurobi allocation failure on this graph,
-while the 300-second run without that cap returned a feasible layout.
 \input{sections/six_method_table}
+\input{sections/discussion}
 \input{sections/conclusion}
 
 \section*{Data availability}
@@ -60,8 +51,8 @@ The project uses the graph inputs and conversion rules in the project
 repository. The original pilot results are in \path{results/summary/day6_pairwise_cpsat.csv}.
 The six-method run records and controlled SAT experiments are archived in
 \path{results/raw/}.
-\url{https://github.com/NguyenHung2604/BTL-2}
 
 \bibliographystyle{cas-model2-names}
 \bibliography{references}
+\par\medskip\noindent Project repository: \url{https://github.com/NguyenHung2604/BTL-2/}
 \end{document}
