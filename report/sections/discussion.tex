@@ -1,0 +1,41 @@
+\section{Discussion}
+\label{sec:discussion}
+
+\subsection{Comparing the SAT encodings at a common threshold}
+For $n\ge 2$ and $K\ge 0$, both encodings forbid the same ordered position
+pairs on each edge. Before simplification, their edge clauses therefore
+have the same count. The assignment clauses account for the difference:
+pairwise uses $n+2n\binom{n}{2}$, while order uses
+$n(n-2)+n\binom{n}{2}$. A pairwise edge clause contains two literals.
+Excluding an interior position in the order encoding takes two threshold
+literals per endpoint, so an order edge clause can contain four.
+
+On BCSSTK01 ($n=48$, $m=176$), the two 300-second SAT runs started at
+$K=23$. Each vertex position has just one forbidden partner, the position
+diametrically opposite it. This contributes $176\cdot48=8{,}448$ edge
+clauses to either formula. Pairwise used 2,304 variables and 116,784
+clauses in total. Order used 2,256 variables and 64,800 clauses.
+The corresponding construction times, including loading clauses into
+Glucose3, were 0.191 and 0.377 seconds. Clause count alone therefore
+did not predict construction time on this instance.
+
+\subsection{From formula size to search outcomes}
+Across all thresholds on BCSSTK01, pairwise built 13 formulas with
+2,836,080 clauses in 3.390 seconds and reached bandwidth 12. Order built
+12 formulas with 1,892,736 clauses in 5.746 seconds and reached bandwidth
+13. These totals sum the input clauses over successive builds. The final
+decisions at $K=11$ and $K=12$, respectively, timed out, leaving both
+SAT runs with the degree lower bound of 6. In the original five-method
+batch, CP-SAT certified 12 on the same graph. That certificate establishes
+the quality of the pairwise layout retrospectively. The pairwise run
+itself returned a feasible solution.
+
+\subsection{Limits of the comparison}
+Only BCSSTK01 exercised both SAT encodings in the three-graph rerun.
+On JGL009 the initial bandwidth of 4 matched the degree lower bound
+before either formula was built. On BP~400 both methods hit the size
+guard before search. These cases show where the current implementation
+can save construction work and where it reaches its resource limit.
+One timed comparison, with some concurrent local work, cannot establish
+a runtime ranking or isolate the effect of clause width. The per-threshold
+measurements are archived in \path{results/raw/six_method_benchmark.jsonl}.

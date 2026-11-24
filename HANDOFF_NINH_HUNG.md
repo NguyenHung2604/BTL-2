@@ -58,13 +58,13 @@ Nguồn: `results/raw/six_method_smoke_fresh.jsonl`, 12 record trên `cycle6` v�
 
 - Trên máy Windows của người dùng: full test suite báo **141 passed, 22 subtests passed**; manifest validator xác nhận 3 benchmark graph và 1 graph bị loại; `plot_results.py --check-only --verify-runs` đọc 18 lượt và 3 dataset.
 - Trong lần rà soát ZIP ở môi trường hiện tại: `scripts/validate_manifest.py` đạt; `plot_results.py --check-only --verify-runs` đạt và bảng LaTeX sinh lại khớp nội dung hiện tại. Full pytest không thể thu thập vì môi trường rà soát thiếu `ortools` và `pysat`; đây không phải kết quả test thất bại của code trên máy Windows.
-- Chưa xác nhận clean-checkout smoke. ZIP có thư mục `.git` với working tree thay đổi; cần một checkout sạch thực sự để chứng minh tái lập từ commit.
+- Đã tái chạy từ checkout sạch tại commit `f8f56a7` trên Windows, dùng lại môi trường Python của dự án. Thêm `D:\cpoptimizer\bin\x64_win64` vào PATH của phiên chạy rồi chạy `python scripts/benchmark.py --config configs/smoke.json --output <log-moi> --no-resume`. Cả 6 phương pháp trên cycle6 và path5 đạt OPTIMAL, cận dưới và bandwidth đều bằng 1. Log ở `results/raw/six_method_smoke_clean_f8f56a7.jsonl`.
 - Kết quả CP Optimizer bandwidth 12 trong pilot 60 giây cần trưởng nhóm xác nhận nguồn/log trước khi sửa hoặc diễn giải lại đoạn báo cáo liên quan.
 
 ## Việc bàn giao còn lại
 
 1. Xác nhận với trưởng nhóm nguồn kết quả CP Optimizer bandwidth 12 của pilot 60 giây.
-2. Chạy smoke trên checkout sạch tại commit đã chốt; không ghi đè các JSONL hiện có.
+2. Smoke từ checkout sạch đã đạt 12/12 tại commit `f8f56a7`.
 3. Chốt nội dung README và gói dữ liệu/log cuối cùng.
 4. Tạo lại và xác minh `CHECKSUMS.sha256` sau khi tất cả file đã chốt.
 
