@@ -18,6 +18,24 @@ from cbmp.result import read_jsonl
 
 
 class TestBenchmarkRunner(unittest.TestCase):
+
+    def test_loads_compressed_harwell_boeing_matrix(self):
+        instance = benchmark._load_instance(
+            {"graph_id": "jgl009", "path": "data/benchmarks/harwell_boeing/raw/jgl009.pua.gz"},
+            REPO_ROOT,
+        )
+        self.assertEqual((instance["n"], instance["num_edges"]), (9, 32))
+        self.assertEqual(instance["matrix_type"], "PUA")
+        self.assertEqual(len(instance["raw_sha256"]), 64)
+
+    def test_loads_compressed_matrix_market_file(self):
+        instance = benchmark._load_instance(
+            {"graph_id": "bcsstk01", "path": "data/benchmarks/harwell_boeing/raw/bcsstk01.mtx.gz"},
+            REPO_ROOT,
+        )
+        self.assertEqual((instance["n"], instance["num_edges"]), (48, 176))
+        self.assertEqual(instance["matrix_type"], "MatrixMarket")
+
     def test_inline_instance_is_normalized(self):
         instance = benchmark._load_instance(
             {
@@ -91,6 +109,8 @@ class TestBenchmarkRunner(unittest.TestCase):
                 self.assertEqual(len(first), 1)
                 self.assertEqual(first[0]["graph_id"], "path3")
                 self.assertEqual(first[0]["seed"], 4)
+                self.assertGreaterEqual(first[0]["total_time"], 0.03)
+                self.assertGreaterEqual(first[0]["validation_time"], 0.0)
                 benchmark.run_benchmark(
                     config,
                     REPO_ROOT / "configs" / "smoke.json",
@@ -102,7 +122,7 @@ class TestBenchmarkRunner(unittest.TestCase):
     def test_preflight_limit_records_error_without_calling_solver(self):
         config = {
             "instances": [{"graph_id": "large", "n": 10, "edges": [[i, j] for i in range(10) for j in range(i + 1, 10)]}],
-            "methods": ["fake"],
+            "methods": ["gurobi_mip"],
             "time_limit": 5,
             "threads": 1,
             "max_constraints": 10,
@@ -112,7 +132,7 @@ class TestBenchmarkRunner(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temp_dir:
             output = Path(temp_dir) / "guard.jsonl"
-            with patch.dict(benchmark.SOLVER_REGISTRY, {"fake": should_not_run}, clear=False):
+            with patch.dict(benchmark.SOLVER_REGISTRY, {"gurobi_mip": should_not_run}, clear=False):
                 benchmark.run_benchmark(
                     config,
                     REPO_ROOT / "configs" / "smoke.json",
@@ -123,6 +143,132 @@ class TestBenchmarkRunner(unittest.TestCase):
             self.assertEqual(records[0]["termination_reason"], "error")
             self.assertEqual(records[0]["error_type"], "preflight_model_size_limit")
 
+
+    def test_sat_preflight_guard_records_upper_bound_without_importing_solver(self):
+        config = {
+            "instances": [{"graph_id": "dense", "n": 6,
+                           "edges": [[i, j] for i in range(6) for j in range(i + 1, 6)]}],
+            "methods": ["sat_pairwise"], "time_limit": 5, "threads": 1,
+            "max_sat_variables": 100, "max_sat_clauses": 10, "resume": False,
+        }
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "sat-guard.jsonl"
+            benchmark.run_benchmark(
+                config, REPO_ROOT / "configs" / "smoke.json", output_override=output,
+            )
+            record = read_jsonl(output)[0]
+        self.assertEqual(record["error_type"], "preflight_model_size_limit")
+        self.assertEqual(record["termination_reason"], "error")
+        self.assertGreater(record["estimated_num_clauses"], 10)
+
+    def test_runner_rejects_invalid_solver_incumbent(self):
+        config = {
+            "instances": [{"graph_id": "path3", "n": 3, "edges": [[0, 1], [1, 2]]}],
+            "methods": ["fake"], "time_limit": 5, "threads": 1, "resume": False,
+        }
+
+        def invalid_solver(formulation, **kwargs):
+            return {
+                "status": "OPTIMAL", "termination_reason": "completed",
+                "incumbent": 0, "lower_bound": 0, "optimality_proven": True,
+                "labeling": [0, 1, 2], "build_time": 0.01, "solve_time": 0.01,
+                "total_time": 0.02,
+            }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "invalid.jsonl"
+            with patch.dict(benchmark.SOLVER_REGISTRY, {"fake": invalid_solver}, clear=False):
+                benchmark.run_benchmark(config, REPO_ROOT / "configs" / "smoke.json", output_override=output)
+            record = read_jsonl(output)[0]
+            self.assertEqual(record["status"], "NO_SOLUTION")
+            self.assertEqual(record["termination_reason"], "error")
+            self.assertEqual(record["error_type"], "ValueError")
+            self.assertIn("validator computed", record["error_message"])
+
+    def test_mip_build_timeout_does_not_call_solver(self):
+        config = {
+            "instances": [{"graph_id": "path3", "n": 3, "edges": [[0, 1], [1, 2]]}],
+            "methods": ["gurobi_mip"],
+            "time_limit": 5,
+            "threads": 1,
+            "resume": False,
+        }
+
+        def should_not_run(*args, **kwargs):
+            raise AssertionError("solver must not run after build exhausts the budget")
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "build-timeout.jsonl"
+
+            with (
+                patch.object(benchmark, "monotonic", side_effect=[0, 6, 6, 6, 6]),
+                patch.dict(benchmark.SOLVER_REGISTRY, {"gurobi_mip": should_not_run}),
+            ):
+                benchmark.run_benchmark(
+                    config,
+                    REPO_ROOT / "configs" / "smoke.json",
+                    output_override=output,
+                )
+
+            record = read_jsonl(output)[0]
+
+        self.assertEqual(record["status"], "NO_SOLUTION")
+        self.assertEqual(record["termination_reason"], "timeout")
+        self.assertAlmostEqual(record["build_time"], 6.0)
+        self.assertEqual(record["solve_time"], 0.0)
+        self.assertIsNone(record["incumbent"])
+
+    def test_mip_solver_receives_remaining_time_and_keeps_timeout_incumbent(self):
+        config = {
+            "instances": [{"graph_id": "path3", "n": 3, "edges": [[0, 1], [1, 2]]}],
+            "methods": ["gurobi_mip"],
+            "time_limit": 5,
+            "threads": 1,
+            "resume": False,
+        }
+        received = {}
+
+        def fake_timeout_solver(formulation, **kwargs):
+            received["time_limit"] = kwargs["time_limit"]
+            return {
+                "method": "gurobi_mip",
+                "status": "FEASIBLE",
+                "termination_reason": "timeout",
+                "incumbent": 1,
+                "lower_bound": 0,
+                "optimality_proven": False,
+                "labeling": [0, 1, 2],
+                "build_time": 0.1,
+                "solve_time": 4.0,
+                "total_time": 4.1,
+                "num_variables": 10,
+                "num_constraints": 24,
+            }
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output = Path(temp_dir) / "solver-timeout.jsonl"
+
+            with (
+                patch.object(benchmark, "monotonic", side_effect=[0, 1, 1, 1, 2]),
+                patch.dict(
+                    benchmark.SOLVER_REGISTRY,
+                    {"gurobi_mip": fake_timeout_solver},
+                ),
+            ):
+                benchmark.run_benchmark(
+                    config,
+                    REPO_ROOT / "configs" / "smoke.json",
+                    output_override=output,
+                )
+
+            record = read_jsonl(output)[0]
+
+        self.assertAlmostEqual(received["time_limit"], 4.0)
+        self.assertEqual(record["status"], "FEASIBLE")
+        self.assertEqual(record["termination_reason"], "timeout")
+        self.assertEqual(record["incumbent"], 1)
+        self.assertEqual(record["labeling"], [0, 1, 2])
+        self.assertAlmostEqual(record["build_time"], 1.1)
 
 if __name__ == "__main__":
     unittest.main()

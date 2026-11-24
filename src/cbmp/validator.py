@@ -3,6 +3,7 @@
 from typing import Iterable, Optional, Sequence, Tuple
 
 from .graph import Graph
+from .manifest import graph_statistics
 from .objective import compute_bandwidth
 
 
@@ -65,6 +66,31 @@ def validated_bandwidth(
             )
 
     return bandwidth
+
+
+def certify_record(record, n, edges):
+    """Keep native diagnostics alongside bounds independently certified by the graph."""
+    if record.get("error_message") and "out of memory" in record["error_message"].lower():
+        record["termination_reason"] = "OOM"
+    labels = record.get("labeling")
+    if labels is None:
+        if record.get("status") in {"OPTIMAL", "FEASIBLE"}:
+            raise ValueError("Solver reported a solution status without a labeling")
+        return
+    value = validated_bandwidth(n, edges, labels)
+    claimed = record.get("incumbent")
+    if claimed is not None and float(claimed) != value:
+        raise ValueError(f"Solver claimed bandwidth {claimed}, validator computed {value}")
+    record["incumbent"] = value
+    degree_bound = (graph_statistics(n, edges)["max_degree"] + 1) // 2
+    native = record.get("lower_bound")
+    if native is None or native < degree_bound:
+        record["solver_lower_bound"] = native
+        record["lower_bound"] = degree_bound
+    if record["lower_bound"] > value:
+        raise ValueError("Reported lower bound exceeds validated witness")
+    if record["status"] == "OPTIMAL" and (record["lower_bound"] != value or not record.get("optimality_proven")):
+        raise ValueError("Optimality requires matching validated bounds")
 
 
 def validate_solution(graph: Graph, labels: Sequence[int], reported_bandwidth: int) -> bool:

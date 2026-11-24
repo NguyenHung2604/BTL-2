@@ -1,0 +1,6 @@
+method,instances_proven,seconds
+cp_sat,1,0.609000000054948
+cplex_cp,1,0.0940000000409782
+gurobi_mip,1,0.1869999999180436
+sat_order,1,5.2600051276385784e-05
+sat_pairwise,1,0.0779999999795109

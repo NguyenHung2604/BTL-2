@@ -1,0 +1,9 @@
+{
+  "input": "results/raw/six_method_benchmark.jsonl",
+  "input_sha256": "427125ef205735eb2bc33878dd5a831545b1c8a547b603b5621a4b5f45b47a48",
+  "manifest": "data/manifest.csv",
+  "witnesses_rechecked": true,
+  "num_runs": 18,
+  "num_datasets": 3,
+  "plot_library": "cnsplots"
+}

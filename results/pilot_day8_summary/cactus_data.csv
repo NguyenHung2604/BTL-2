@@ -1,0 +1,5 @@
+method,instances_proven,seconds
+cp_sat,1,0.5928146997466683
+cp_sat,2,46.686141800135374
+sat_order,1,0.0006534997373819351
+sat_pairwise,1,0.050213000271469355

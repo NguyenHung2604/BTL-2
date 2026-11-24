@@ -6,7 +6,7 @@ This module only normalizes their dictionaries and persists benchmark records.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import math
 from pathlib import Path
@@ -37,11 +37,27 @@ RESULT_DEFAULTS: Dict[str, Any] = {
     "labeling": None,
     "build_time": 0.0,
     "solve_time": 0.0,
+    "validation_time": 0.0,
     "total_time": 0.0,
     "peak_memory": None,
     "num_variables": None,
     "num_constraints": None,
+    "estimated_num_variables": None,
+    "estimated_num_constraints": None,
+    "num_clauses": None,
+    "max_num_clauses": None,
+    "estimated_num_clauses": None,
+    "decision_history": None,
     "graph_id": None,
+    "source_url": None,
+    "source_path": None,
+    "raw_path": None,
+    "raw_sha256": None,
+    "graph_sha256": None,
+    "normalized_graph_sha256": None,
+    "matrix_type": None,
+    "max_degree": None,
+    "isolated_vertices": None,
     "n": None,
     "num_edges": None,
     "seed": None,
@@ -101,7 +117,7 @@ def normalize_result(
     if record["optimality_proven"] and status != "OPTIMAL":
         raise ValueError("optimality_proven=True requires status='OPTIMAL'")
 
-    for field in ("build_time", "solve_time", "total_time", "peak_memory"):
+    for field in ("build_time", "solve_time", "validation_time", "total_time", "peak_memory"):
         _validate_nonnegative_number(record[field], field)
     for field in ("incumbent", "lower_bound"):
         value = record[field]
@@ -187,3 +203,10 @@ class SolveResult:
     labels: list[int] | None = None
     bandwidth: int | None = None
     lower_bound: int | None = None
+    build_time: float = 0.0
+    solve_time: float = 0.0
+    num_variables: int | None = None
+    num_clauses: int | None = None
+    max_num_clauses: int | None = None
+    decision_history: list[dict[str, Any]] = field(default_factory=list)
+    solver_version: str | None = None

@@ -1,0 +1,7 @@
+instance,method,n,m,density,status,reason,lower_bound,bandwidth,proven,validated,total_s,build_s,solve_s,sampled_tree_peak_rss_MiB,model_built,seed,threads,wall_budget_s
+jgl009,sat_pairwise,9,32,0.888889,OPTIMAL,completed,4,4,True,True,0.046,0.0,0.0,33.39,False,0,1,60
+jgl009,cp_sat,9,32,0.888889,OPTIMAL,completed,4,4,True,True,0.047,0.0,0.0,34.46,False,0,1,60
+bcsstm01,sat_pairwise,48,0,0.0,OPTIMAL,completed,0,0,True,True,0.031,0.0,0.0,29.68,False,0,1,60
+bcsstm01,cp_sat,48,0,0.0,OPTIMAL,completed,0,0,True,True,0.047,0.0,0.0,27.15,False,0,1,60
+bcsstk01,sat_pairwise,48,176,0.156028,FEASIBLE,timeout,6,12,False,True,60.016,4.141,55.625,232.17,True,0,1,60
+bcsstk01,cp_sat,48,176,0.156028,FEASIBLE,timeout,6,12,False,True,60.015,0.016,59.25,145.43,True,0,1,60

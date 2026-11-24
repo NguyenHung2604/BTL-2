@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 from itertools import combinations
+from time import perf_counter
 from typing import TypedDict
 
 from ..graph import Graph
@@ -27,9 +28,11 @@ def different_from(v: int, i: int, n: int) -> list[int]:
     return literals
 
 
-def build(graph: Graph, k: int) -> tuple[list[list[int]], OrderMetadata]:
+def build(graph: Graph, k: int, *, deadline: float | None = None) -> tuple[list[list[int]], OrderMetadata]:
     """Monotone chains select one position. Forbid collisions and distant edge pairs."""
     n = graph.n
+    if deadline is not None and perf_counter() >= deadline:
+        raise TimeoutError("CNF build deadline reached")
     var_map = {(v, t): threshold(v, t, n) for v in graph.vertices for t in range(n - 1)}
     metadata: OrderMetadata = {"n": n, "var_map": var_map}
     if k < 0:
@@ -39,11 +42,15 @@ def build(graph: Graph, k: int) -> tuple[list[list[int]], OrderMetadata]:
         for v in graph.vertices for t in range(n - 2)
     ]
     for u, v in combinations(graph.vertices, 2):
+        if deadline is not None and perf_counter() >= deadline:
+            raise TimeoutError("CNF build deadline reached")
         for i in range(n):
             clauses.append(different_from(u, i, n) + different_from(v, i, n))
     if k < n // 2:
         for u, v in graph.edges:
             for i in range(n):
+                if deadline is not None and perf_counter() >= deadline:
+                    raise TimeoutError("CNF build deadline reached")
                 for j in range(n):
                     if cyclic_distance(i, j, n) > k:
                         clauses.append(different_from(u, i, n) + different_from(v, j, n))

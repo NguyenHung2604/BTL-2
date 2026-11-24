@@ -256,7 +256,9 @@ def solve_cplex(
         result["error_type"] = type(exc).__name__
         result["error_message"] = str(exc)
         message = str(exc).lower()
-        if (
+        if isinstance(exc, MemoryError) or "out of memory" in message:
+            result["termination_reason"] = "OOM"
+        elif (
             "license" in message
             or "community edition" in message
             or "problem size limits" in message

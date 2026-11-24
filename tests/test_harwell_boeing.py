@@ -103,3 +103,15 @@ def test_asymmetry_cancellation_and_isolate(tmp_path):
     path.write_text("%%MatrixMarket matrix coordinate real general\n2 3 1\n1 2 1\n")
     with pytest.raises(ValueError, match="square"):
         read_matrix(path)
+
+
+def test_reads_gzipped_harwell_boeing(tmp_path):
+    import gzip
+
+    plain = tmp_path / "sample.pua"
+    compressed = tmp_path / "sample.pua.gz"
+    plain.write_text(make_hb_sample().replace("RSA", "RSA"), encoding="ascii")
+    with gzip.open(compressed, "wt", encoding="ascii") as stream:
+        stream.write(plain.read_text(encoding="ascii"))
+
+    assert read_harwell_boeing(compressed) == read_harwell_boeing(plain)

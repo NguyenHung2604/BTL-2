@@ -1,0 +1,9 @@
+{
+  "input": "results/raw/six_method_benchmark_day8_pilot.jsonl",
+  "input_sha256": "a1c924b651ddf74468a482474d0ea3a7632926dfa0b39c497c05102b710de0f6",
+  "manifest": "data/manifest.csv",
+  "witnesses_rechecked": true,
+  "num_runs": 18,
+  "num_datasets": 3,
+  "plot_library": "cnsplots"
+}

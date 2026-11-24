@@ -1,0 +1,2 @@
+instance,source_url,raw_path,graph_path,matrix_type,n,m,max_degree,isolated_vertices,raw_sha256,graph_sha256,normalized_graph_sha256,exclusion_reason
+bcsstm01,https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/bcsstruc1/bcsstm01.html,data/benchmarks/harwell_boeing/raw/bcsstm01.rsa,data/excluded/bcsstm01.json,RSA,48,0,0,48,7ade1f8bb98e6214715bd0eaeb0b107df7024c6472113b4e85a4490b5af5c871,1bab36829009c70527378790e41d814dda209c6ff23e058629a60fa61a740c38,993bfb7b27ff2f5d6ad6f86f7da57f1fc2b1d9f7859ea58882a0d29be04fcb42,edgeless_after_diagonal_removal

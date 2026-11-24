@@ -83,7 +83,10 @@ def read_harwell_boeing(path: str | Path) -> HBGraph:
     exists if A[u, v] or A[v, u] is nonzero. Diagonal entries are ignored.
     """
     path = Path(path)
-    lines = path.read_text(encoding="ascii").splitlines()
+    # Harwell–Boeing downloads are often distributed as .gz files.
+    opener = gzip.open if path.suffix.lower() == ".gz" else open
+    with opener(path, "rt", encoding="ascii") as stream:
+        lines = stream.read().splitlines()
 
     if len(lines) < 4:
         raise ValueError("Invalid Harwell-Boeing file: incomplete header")

@@ -1,0 +1,27 @@
+{
+  "scope": [
+    "sat_pairwise",
+    "cp_sat"
+  ],
+  "raw": "results/raw/day6_pairwise_cpsat.jsonl",
+  "raw_sha256": "7f15b19292144d3a6588a000f91834b71273f88fda7d3ed85adced526a67ffc8",
+  "pilot": {
+    "wall_budget_s": 60,
+    "threads": 1,
+    "seed": 0,
+    "instances": 3,
+    "trials": 6,
+    "repeats": 1,
+    "enforced_ram_limit_MiB": null,
+    "ram_measure": "sampled sum of process-tree RSS every 50 ms",
+    "observed_max_MiB": 232.17
+  },
+  "proposed_main_run": {
+    "wall_budget_s": 300,
+    "process_tree_memory_budget_MiB": 1024,
+    "threads": 1,
+    "seed": 0
+  },
+  "rationale": "Both methods timed out on bcsstk01 at 60 seconds with LB=6 and UB=12. Use the planned 300 seconds for the full optimization. A 1 GiB per-run memory budget gives over 4x the largest sampled RSS in this pilot.",
+  "limitations": "Only bcsstk01 required model construction. The proposed RAM ceiling was not enforced or tested in this pilot. Larger instances require preflight size checks and an enforced memory limit before batch runs. Coordinate limits with the other methods before the group benchmark."
+}
