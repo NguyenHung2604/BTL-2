@@ -37,85 +37,6 @@ def create_metadata(graph: Graph) -> OrderMetadata:
     return {"n": n, "var_map": var_map, "vertices": vertices}
 
 
-def _build_diff_table(vertices: Sequence[int], n: int) -> dict[int, list[list[int]]]:
-    return {v: [different_from(v, i, n) for i in range(n)] for v in vertices}
-
-
-def build_fixed(
-    graph: Graph,
-    *,
-    metadata: OrderMetadata | None = None,
-    deadline: float | None = None,
-) -> tuple[list[list[int]], OrderMetadata, dict[int, list[list[int]]]]:
-    """Build clauses independent of k: monotone chains and collision avoidance."""
-    n = graph.n
-    if deadline is not None and perf_counter() >= deadline:
-        raise TimeoutError("CNF build deadline reached")
-
-    resolved_metadata = metadata if metadata is not None else create_metadata(graph)
-    vertices = resolved_metadata.get("vertices") or list(graph.vertices)
-    var_map = resolved_metadata["var_map"]
-
-    clauses: list[list[int]] = [
-        [-var_map[v, t], var_map[v, t + 1]]
-        for v in vertices
-        for t in range(n - 2)
-    ]
-
-    if n < 2 or len(vertices) < 2:
-        return clauses, resolved_metadata, {}
-
-    diff_table = _build_diff_table(vertices, n)
-    for idx, (u, v) in enumerate(combinations(vertices, 2)):
-        if deadline is not None and (idx & 255) == 0 and perf_counter() >= deadline:
-            raise TimeoutError("CNF build deadline reached")
-        diff_u = diff_table[u]
-        diff_v = diff_table[v]
-        for i in range(n):
-            clauses.append(diff_u[i] + diff_v[i])
-
-    return clauses, resolved_metadata, diff_table
-
-
-def build_distance_clauses(
-    graph: Graph,
-    *,
-    min_forbidden_dist: int,
-    max_forbidden_dist: int | None = None,
-    diff_table: dict[int, list[list[int]]] | None = None,
-    deadline: float | None = None,
-) -> list[list[int]]:
-    """Forbid edge endpoints (u, v) whose cyclic distance falls in the target range."""
-    n = graph.n
-    vertices = list(graph.vertices)
-    if not graph.edges or n < 2 or min_forbidden_dist >= n // 2:
-        return []
-
-    upper = (n // 2) if max_forbidden_dist is None else min(max_forbidden_dist, n // 2)
-    if min_forbidden_dist > upper:
-        return []
-
-    table = diff_table if diff_table is not None else _build_diff_table(vertices, n)
-    bad_pairs = [
-        (i, j)
-        for i in range(n)
-        for j in range(n)
-        if min_forbidden_dist <= cyclic_distance(i, j, n) <= upper
-    ]
-    if not bad_pairs:
-        return []
-
-    clauses: list[list[int]] = []
-    for idx, (u, v) in enumerate(graph.edges):
-        if deadline is not None and (idx & 63) == 0 and perf_counter() >= deadline:
-            raise TimeoutError("CNF build deadline reached")
-        diff_u = table[u]
-        diff_v = table[v]
-        for i, j in bad_pairs:
-            clauses.append(diff_u[i] + diff_v[j])
-    return clauses
-
-
 def build(
     graph: Graph,
     k: int,
@@ -131,22 +52,49 @@ def build(
     if k < 0:
         return [[]], metadata
 
-    fixed_clauses, metadata, diff_table = build_fixed(
-        graph,
-        metadata=metadata,
-        deadline=deadline,
-    )
-    if k >= n // 2 or not graph.edges:
-        return fixed_clauses, metadata
+    vertices = metadata["vertices"]
+    var_map = metadata["var_map"]
 
-    distance_clauses = build_distance_clauses(
-        graph,
-        min_forbidden_dist=k + 1,
-        max_forbidden_dist=n // 2,
-        diff_table=diff_table,
-        deadline=deadline,
-    )
-    return fixed_clauses + distance_clauses, metadata
+    clauses: list[list[int]] = [
+        [-var_map[v, t], var_map[v, t + 1]]
+        for v in vertices
+        for t in range(n - 2)
+    ]
+
+    if n < 2 or len(vertices) < 2:
+        return clauses, metadata
+
+    diff_table = {v: [different_from(v, i, n) for i in range(n)] for v in vertices}
+
+    for idx, (u, v) in enumerate(combinations(vertices, 2)):
+        if deadline is not None and (idx & 255) == 0 and perf_counter() >= deadline:
+            raise TimeoutError("CNF build deadline reached")
+        diff_u = diff_table[u]
+        diff_v = diff_table[v]
+        for i in range(n):
+            clauses.append(diff_u[i] + diff_v[i])
+
+    if k >= n // 2 or not graph.edges:
+        return clauses, metadata
+
+    bad_pairs = [
+        (i, j)
+        for i in range(n)
+        for j in range(n)
+        if cyclic_distance(i, j, n) > k
+    ]
+    if not bad_pairs:
+        return clauses, metadata
+
+    for idx, (u, v) in enumerate(graph.edges):
+        if deadline is not None and (idx & 63) == 0 and perf_counter() >= deadline:
+            raise TimeoutError("CNF build deadline reached")
+        diff_u = diff_table[u]
+        diff_v = diff_table[v]
+        for i, j in bad_pairs:
+            clauses.append(diff_u[i] + diff_v[j])
+
+    return clauses, metadata
 
 
 def decode(model: Sequence[int], metadata: OrderMetadata | dict) -> list[int]:
