@@ -1,6 +1,6 @@
 """CBMP decision and optimization with a shared Glucose backend."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib.metadata import PackageNotFoundError, version
 from math import isfinite
 from threading import Timer
