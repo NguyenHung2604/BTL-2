@@ -237,6 +237,23 @@ Tên gợi ý: **Exact SAT Encodings for the Cyclic Bandwidth Minimization Probl
 - [ ] Đóng góp của ba người phản ánh việc thực tế, không chỉ dự kiến.
 - [ ] Mỗi người giải thích được mục tiêu, hai encoding, tiêu chí tối ưu, fairness và một kết quả chính.
 
+### Hùng rà soát ngày 24/11/2026
+
+| Hạng mục | Bằng chứng và trạng thái |
+|---|---|
+| Hai encoding, khoảng cách vòng, hoán vị, điều kiện tối ưu | 68 test và 14 subtest đạt trong `test_encodings.py`, `test_validator.py`, `test_brute_force.py`, `test_search.py`. Discussion đối chiếu hai encoding tại cùng ngưỡng trước khi so tổng toàn lượt. |
+| Nghiệm, cận và giới hạn thời gian | Đã chạy lại `certify_record` trên 51 bản ghi của batch năm phương pháp 300 giây, pilot sáu phương pháp 60 giây và rerun sáu phương pháp 300 giây. Cả 30 hoán vị có nghiệm đều khớp bandwidth công bố. Trên BCSSTK01, CP-SAT ở batch đầu chứng minh 12. Hai lượt SAT ở rerun kết thúc UNKNOWN tại ngưỡng cuối. |
+| Quy mô và bốn backend đối chứng | Log giữ cả ba đồ thị và các trường hợp timeout, size guard, lỗi license. CPLEX MIP gặp lỗi license trên hai đồ thị nhỏ trong rerun. Việc giảng viên chấp nhận ngoại lệ còn chờ xác nhận. |
+| Dữ liệu và khả năng tái hiện | Đối chiếu số biến, tổng clause và thời gian build trong Discussion với lịch sử từng ngưỡng ở JSONL. README có lệnh cài, test, chạy một đồ thị và sinh hình. Việc kiểm tra từ checkout sạch và gói dữ liệu thuộc Hưng. |
+| Hình, PDF, trích dẫn | Script sinh hình dùng cnsplots. Báo cáo hiện chèn sơ đồ vòng. Việc duyệt hình thực nghiệm và caption thuộc Hưng. PDF build được với Tectonic và BibTeX. Log còn cảnh báo tràn 117.0831 pt ở phần tạo tiêu đề; công đoạn duyệt LaTeX/PDF cuối thuộc Đức. |
+| Data Availability | URL trong báo cáo trùng origin. Đã đọc được HEAD từ GitHub bằng git ls-remote khi tắt credential helper. |
+| Đóng góp, bảo vệ và nộp | README ghi phân công ba người. Cần hai bạn xác nhận đóng góp thực tế và trả lời câu hỏi bên dưới trước khi chốt bản nộp. Kế hoạch chưa ghi hạn và kênh nộp chính thức. |
+
+**Câu hỏi Hùng chuẩn bị cho buổi hỏi chéo**
+
+- Đức: Với biến ngưỡng, làm thế nào giải mã hai trường hợp toàn đúng và toàn sai? Vì sao 552 và 1.320 ở scrambled_path8 là tổng clause qua ba ngưỡng? Dùng `order_cp_pilot.jsonl` để phân biệt kết quả order 13 trong pilot riêng trên BCSSTK01 với 14 trong pilot sáu phương pháp có giới hạn bộ nhớ.
+- Hưng: Trên BP 400, bằng chứng nào phân biệt việc bị chặn trước khi dựng mô hình với một lần solver chạy hết giờ? Khi đối chiếu CP-SAT trên BCSSTK01, vì sao batch đầu ghi OPTIMAL còn rerun sáu phương pháp ghi FEASIBLE dù cùng đạt 12?
+
 ## 11. Nguồn và vị trí đối chiếu
 
 Số trang dưới đây là thứ tự trang PDF, không phải số trang in trong bài mẫu.

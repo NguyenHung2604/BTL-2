@@ -20,14 +20,16 @@
 \author{Nguyen Minh Duc - 24021416}
 \author{Ninh Ngoc Hung - 24021504}
 \begin{abstract}
-We study the minimum possible maximum edge distance when the vertices of
-an undirected graph occupy distinct positions on a circle. We formulate
-the bounded-distance decision problem in SAT and use a decreasing sequence
-of thresholds to prove optimality or return a validated layout and lower
-bound at timeout. A pilot on three graphs from Harwell--Boeing matrices
-illustrates both outcomes. For the 48-vertex graph derived from BCSSTK01,
-the pairwise solver and CP-SAT each found bandwidth 12 within the 60-second
-budget; the recorded lower bound was 6.
+We compare two SAT encodings for minimizing the largest cyclic distance
+between adjacent vertices in a graph. Both search over integer bandwidth
+thresholds and validate each candidate permutation. We evaluate them
+alongside four constraint and mathematical programming methods on three
+graphs derived from Harwell--Boeing matrices. On the 48-vertex BCSSTK01
+graph at threshold 23, the order encoding used 64,800 clauses and the
+pairwise encoding used 116,784. Under a 300-second budget, pairwise SAT
+found a layout of bandwidth 12 and order SAT found 13. Both runs ended
+with a lower bound of 6. On the largest graph, with 822 vertices, the
+configured model-size guard stopped both SAT methods before search.
 \end{abstract}
 \begin{keywords}
 Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programming
@@ -53,6 +55,7 @@ BCSSTK01, both CP engines reached bandwidth 12. The memory-limited
 60-second pilot recorded a Gurobi allocation failure on this graph,
 while the 300-second run without that cap returned a feasible layout.
 \input{sections/six_method_table}
+\input{sections/discussion}
 \input{sections/conclusion}
 
 \section*{Data availability}
