@@ -1,18 +1,67 @@
 \documentclass[a4paper,fleqn]{cas-sc}
 \usepackage[numbers]{natbib}
-\graphicspath{{../results/figures/}}
+\usepackage{amsmath,amssymb,amsthm}
+\newtheorem{cbmptheorem}{Định lý}
+\usepackage{graphicx}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T5]{fontenc}
+\else
+  \usepackage[no-math]{fontspec}
+  \setmainfont{texgyretermes-regular.otf}[BoldFont=texgyretermes-bold.otf,
+    ItalicFont=texgyretermes-italic.otf,BoldItalicFont=texgyretermes-bolditalic.otf]
+\fi
+\graphicspath{{figures/}{../results/figures/}{../results/summary/}}
 \begin{document}
-\shorttitle{Cyclic Bandwidth Minimization}
-\shortauthors{CBMP project team}
-\title[mode=title]{Cyclic Bandwidth Minimization}
+\shorttitle{Exact methods for cyclic bandwidth}
+\shortauthors{CBMP project team 2}
+\title[mode=title]{SAT Encodings for Cyclic Bandwidth Minimization}
+\author{Nguyen Minh Hung - 24021496}
+\author{Nguyen Minh Duc - 24021416}
+\author{Ninh Ngoc Hung - 24021504}
+\begin{abstract}
+We study the minimum possible maximum edge distance when the vertices of
+an undirected graph occupy distinct positions on a circle. We formulate
+the bounded-distance decision problem in SAT and use a decreasing sequence
+of thresholds to prove optimality or return a validated layout and lower
+bound at timeout. A pilot on three graphs from Harwell--Boeing matrices
+illustrates both outcomes. For the 48-vertex graph derived from BCSSTK01,
+the pairwise solver and CP-SAT each found bandwidth 12 within the 60-second
+budget; the recorded lower bound was 6.
+\end{abstract}
+\begin{keywords}
+Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programming
+\end{keywords}
 \maketitle
+
 \input{sections/introduction}
 \input{sections/background}
 \input{sections/pairwise}
 \input{sections/order}
 \input{sections/baselines}
 \input{sections/experiments}
+\input{sections/ninh_hung_results}
+
+\subsection{Six-method rerun}
+Table~\ref{tab:six-method-rerun} uses the three verified graphs and the
+300-second run records. Every layout was rechecked against its graph
+checksum. Reported lower bounds include the independent degree bound.
+The original five-method experiment and the rerun used different solver
+environments and settings; their proof statuses are reported separately.
+On JGL009, Gurobi and CP Optimizer both certified 4 in the rerun. On
+BCSSTK01, both CP engines reached bandwidth 12. The memory-limited
+60-second pilot recorded a Gurobi allocation failure on this graph,
+while the 300-second run without that cap returned a feasible layout.
+\input{sections/six_method_table}
 \input{sections/conclusion}
+
+\section*{Data availability}
+The project uses the graph inputs and conversion rules in the project
+repository. The original pilot results are in \path{results/summary/day6_pairwise_cpsat.csv}.
+The six-method run records and controlled SAT experiments are archived in
+\path{results/raw/}.
+\url{https://github.com/NguyenHung2604/BTL-2}
+
 \bibliographystyle{cas-model2-names}
 \bibliography{references}
 \end{document}

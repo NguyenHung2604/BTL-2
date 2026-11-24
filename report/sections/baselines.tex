@@ -1,2 +1,56 @@
 \section{Baselines}
-% Document CP and MIP formulations and implementations.
+
+\subsection{Shared mixed-integer linear programming formulation}
+Let $G=(V,E)$ be a simple undirected graph with $|V|=n$. For each vertex
+$v\in V$ and cyclic position $i\in\{0,\ldots,n-1\}$, let
+$x_{v,i}\in\{0,1\}$ indicate whether vertex $v$ is assigned to position $i$.
+The integer variable $K$ represents the maximum cyclic distance over all edges.
+We use
+\[
+ d_n(i,j)=\min\{|i-j|,\,n-|i-j|\}.
+\]
+The common MIP model is
+\begin{align}
+ \min\quad & K, \label{eq:mip-objective}\\
+ \text{s.t.}\quad
+ &\sum_{i=0}^{n-1}x_{v,i}=1
+ &&\forall v\in V, \label{eq:mip-vertex}\\
+ &\sum_{v\in V}x_{v,i}\leq 1
+ &&\forall i\in\{0,\ldots,n-1\}, \label{eq:mip-position}\\
+ &K\geq d_n(i,j)(x_{u,i}+x_{v,j}-1)
+ &&\forall\{u,v\}\in E,\; i,j\in\{0,\ldots,n-1\}, \label{eq:mip-distance}\\
+ &x_{v,i}\in\{0,1\},\quad K\in\mathbb{Z},\quad
+ 0\leq K\leq\lfloor n/2\rfloor. \label{eq:mip-domain}
+\end{align}
+Constraints~\eqref{eq:mip-vertex} assign every vertex to exactly one position.
+Constraints~\eqref{eq:mip-position} prevent two vertices from occupying the
+same position. For a fixed edge $\{u,v\}$, if its endpoints are assigned to
+positions $i$ and $j$, respectively, then the corresponding pair of binary
+variables equals one and Constraint~\eqref{eq:mip-distance} enforces
+$K\geq d_n(i,j)$. Thus minimizing $K$ yields the cyclic bandwidth. If $E$ is
+empty, the model returns $K=0$.
+
+The formulation contains $n^2+1$ variables and
+$2n+|E|n^2$ constraints in the implementation. The latter count includes the
+trivial distance rows with $d_n(i,j)=0$, so it matches the model-generation
+code rather than a reduced algebraic representation. CPLEX MIP and Gurobi MIP
+receive the same formulation; only the solver backend and its version differ.
+This shared model avoids attributing formulation differences to solver
+performance.
+
+\subsection{Implementation and validation}
+Both adapters include model construction in the wall-clock budget. The remaining
+budget is passed to the optimizer after construction. Build time, solve time,
+and end-to-end time are recorded separately. Any incumbent labeling is checked
+again by the independent graph validator, which verifies that the labels form a
+permutation and recomputes the maximum cyclic edge distance. A feasible
+incumbent is not reported as optimal unless the solver proves optimality.
+
+\subsection{Constraint programming baselines}
+Both CP engines assign distinct integer positions to vertices. OR-Tools CP-SAT
+introduces an absolute difference and a cyclic distance for each edge, then
+minimizes their maximum. IBM CP Optimizer uses the same distance expression
+and a shared integer upper bound on all edge distances. CP Optimizer starts
+with a validated identity permutation and the degree lower bound; its native
+search receives the remaining wall-clock budget after model construction.
+The runner verifies each returned permutation and recomputes its objective.

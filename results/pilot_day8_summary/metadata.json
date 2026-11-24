@@ -1,0 +1,7 @@
+{
+  "input": "D:\\CacVanDeHienDai\\BTL-2\\results\\pilot_day8.jsonl",
+  "manifest": "D:\\CacVanDeHienDai\\BTL-2\\data\\manifest.csv",
+  "num_runs": 15,
+  "num_datasets": 3,
+  "plot_library": "cnsplots"
+}

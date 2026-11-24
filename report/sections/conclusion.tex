@@ -1,2 +1,10 @@
 \section{Conclusion}
-% Summarize findings, limitations and future work.
+Six solver adapters now share a benchmark runner with independent validation.
+All six obtained bandwidth 1 on both toy graphs. The original five-method
+benchmark certified bandwidth 12 on BCSSTK01 with CP-SAT. A later run on
+the same graph may return a feasible layout of value 12 while leaving a
+gap between its own bounds; each table therefore reports proof status per run.
+On the scrambled eight-vertex path, reusing the order solver reduced the
+total input clauses from 1320 to 552 over the same three thresholds.
+The three-matrix dataset and the observed license, memory, and model-size
+limits restrict conclusions about relative performance.

@@ -1,15 +1,22 @@
 {
+  "description": "Six CBMP methods on the verified Harwell–Boeing dataset.",
   "manifest": "data/manifest.csv",
   "methods": [
     "sat_pairwise",
     "sat_order",
-    "cplex_mip",
-    "gurobi_mip"
-  ],
-  "time_limit_seconds": 300,
-  "planned_methods": [
     "cp_sat",
+    "cplex_mip",
+    "gurobi_mip",
     "cplex_cp"
   ],
-  "output": "results/benchmark.jsonl"
+  "planned_methods": [],
+  "time_limit_seconds": 300,
+  "threads": 1,
+  "seed": 0,
+  "max_constraints": 1000000,
+  "max_sat_variables": 1000000,
+  "max_sat_clauses": 1000000,
+  "output": "results/raw/six_method_benchmark.jsonl",
+  "resume": true,
+  "solver_output": false
 }

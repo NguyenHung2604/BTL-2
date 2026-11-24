@@ -1,2 +1,14 @@
 \section{Background}
-% Define cyclic distance, bandwidth and the decision problem.
+A layout assigns the $n$ vertices of a simple undirected graph $G=(V,E)$
+to distinct positions $0,\ldots,n-1$ on a circle. For positions $i,j$ the
+distance is $d_n(i,j)=\min(|i-j|,n-|i-j|)$. The bandwidth of a layout
+is the largest distance across an edge, with value zero for an empty edge
+set. The optimization problem minimizes this bandwidth over all layouts.
+
+For an integer threshold $K$, the decision problem asks whether a layout
+of bandwidth at most $K$ exists. Each position has at most $2K$ distinct
+neighbours within distance $K$, so $\lceil\Delta(G)/2\rceil$ is a lower
+bound on the optimum. Every permutation has bandwidth at most
+$\lfloor n/2\rfloor$. A validated layout of value $B$ gives an upper bound.
+Equality with a proven lower bound, or a proof of infeasibility at $B-1$,
+certifies optimality. An interrupted decision leaves that threshold unresolved.

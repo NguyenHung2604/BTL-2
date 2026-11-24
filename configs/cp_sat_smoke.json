@@ -1,0 +1,12 @@
+{
+  "instances": [
+    "data/toy/cycle6.json",
+    "data/toy/path5.json"
+  ],
+  "methods": [
+    "cp_sat"
+  ],
+  "planned_methods": [],
+  "time_limit_seconds": 10,
+  "output": "results/cp_sat_smoke.jsonl"
+}

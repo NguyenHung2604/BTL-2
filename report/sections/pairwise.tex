@@ -1,2 +1,75 @@
 \section{Pairwise encoding}
-% Describe variables, CNF clauses and correctness.
+\label{sec:pairwise}
+
+Let $G=(V,E)$ be a simple undirected graph on $n$ vertices and let
+$P=\{0,\ldots,n-1\}$ be the available positions. For a bijection $p:V\to P$,
+the distance between two positions is
+$d_n(i,j)=\min(|i-j|,n-|i-j|)$. The bandwidth $B(p)$ is the maximum of
+$d_n(p(u),p(v))$ over all edges $\{u,v\}$, with $B(p)=0$ when $E$ is empty.
+For an integer threshold $K$, the decision formula $F(K)$ asks whether
+there exists a labeling with $B(p)\le K$.
+
+\subsection{Clauses and decoding}
+For each $v\in V$ and $i\in P$, the Boolean variable $x_{v,i}$ means
+$p(v)=i$. The implementation numbers it $1+vn+i$, so a positive SAT
+literal identifies both the vertex and its position. For $K\ge 0$ the
+formula consists of four clause families:
+\begin{align}
+&\bigvee_{i\in P}x_{v,i}
+    && (v\in V), \label{eq:pw-alo}\\
+&\neg x_{v,i}\lor\neg x_{v,j}
+    && (v\in V,\ i<j), \label{eq:pw-row}\\
+&\neg x_{u,i}\lor\neg x_{v,i}
+    && (u<v,\ i\in P), \label{eq:pw-col}\\
+&\neg x_{u,i}\lor\neg x_{v,j}
+    && (\{u,v\}\in E,\ d_n(i,j)>K). \label{eq:pw-edge}
+\end{align}
+In~\eqref{eq:pw-edge} each edge is taken once in a fixed orientation and
+$(i,j)$ ranges over ordered pairs of positions. On the six-cycle at $K=1$,
+an edge permits positions $(0,5)$ and forbids $(0,3)$. The natural
+labeling is feasible since all six edges, including the closing edge, have
+distance one. At $K=0$ even a single edge between distinct vertices makes
+the formula unsatisfiable. For $K<0$ the encoder adds an empty clause,
+including on edgeless inputs.
+
+\paragraph{Correctness.}
+Given a feasible labeling, set exactly the variable $x_{v,p(v)}$ in each
+row to true. Distinct labels satisfy~\eqref{eq:pw-col}, and the bandwidth
+bound ensures that each clause in~\eqref{eq:pw-edge} has at least one true negative literal.
+Conversely, \eqref{eq:pw-alo} and~\eqref{eq:pw-row} select one position
+per vertex. By~\eqref{eq:pw-col} the $n$ selected positions are distinct;
+hence all $n$ positions are occupied. Reading the unique true variable in
+row $v$ gives $p(v)$. A decoded edge of distance greater than $K$ would
+violate~\eqref{eq:pw-edge}. Thus the decoded permutation has bandwidth at
+most $K$. The implementation independently validates the permutation and
+recomputes its bandwidth before accepting it.
+
+\paragraph{Size of one decision instance.}
+There are $n^2$ variables, $n$ row disjunctions, and
+$2n\binom{n}{2}$ pairwise assignment clauses. For $n\ge 1$ and $K\ge 0$,
+each position has $\min(n,2K+1)$ allowed partner positions, counting itself.
+Writing $m=|E|$, the total number of clauses before solver simplification is
+\[
+  n+2n\binom{n}{2}+mn\bigl(n-\min(n,2K+1)\bigr).
+\]
+The last term vanishes at $K=\lfloor n/2\rfloor$. For the six-cycle at
+$K=1$ the count is $6+180+108=294$ clauses on 36 variables. The pilot's
+cumulative clause count sums the completed builds across all thresholds.
+
+\subsection{Searching for the optimum}
+Start with the identity permutation, validate it and let $B$ be its measured
+bandwidth. If $\Delta$ is the maximum degree (zero for an empty graph), then
+$L=\lceil\Delta/2\rceil$ is a lower bound: at most $2K$ other positions
+can lie within distance $K$ of a vertex. Every permutation also satisfies
+$B\le\lfloor n/2\rfloor$.
+
+While $B>L$, build $F(B-1)$ and start a fresh Glucose3 instance. A
+satisfying model gives a validated layout with measured bandwidth $B'\le B-1$;
+set $B=B'$ and use this value for the next threshold. If $F(B-1)$ is
+unsatisfiable, no better integer bandwidth exists and $B$ is optimal.
+Equality $B=L$ also proves optimality and may occur before any SAT call.
+One wall-clock budget covers construction and search at every threshold.
+An interrupted decision is recorded as \texttt{UNKNOWN}; the search retains
+the best validated layout and the last justified lower bound. For example,
+in the pilot on \texttt{bcsstk01}, a layout reached $B=12$, and the call at
+$K=11$ timed out. The recorded interval was $[6,12]$.

@@ -3,20 +3,9 @@ import time
 
 from cbmp.encodings import order
 from cbmp.graph import load_graph
+from cbmp.validator import validated_bandwidth
 from cbmp.solvers import cplex_cp
 from pysat.solvers import Glucose3
-
-
-def cyclic_dist(a: int, b: int, n: int) -> int:
-  d = abs(a - b)
-  return min(d, n - d)
-
-
-def is_valid_cbmp(graph, labels: list[int], k: int) -> bool:
-  n = graph.n
-  if len(labels) != n or sorted(labels) != list(range(n)):
-    return False
-  return all(cyclic_dist(labels[u], labels[v], n) <= k for u, v in graph.edges)
 
 
 def find_min_k_linear(graph):
@@ -28,7 +17,7 @@ def find_min_k_linear(graph):
       if solver.solve():
         labels = order.decode(solver.get_model(), meta)
         elapsed = time.perf_counter() - t0
-        return k, labels, is_valid_cbmp(graph, labels, k), elapsed
+        return k, labels, validated_bandwidth(graph.n, graph.edges, labels) <= k, elapsed
   return None, None, False, time.perf_counter() - t0
 
 
