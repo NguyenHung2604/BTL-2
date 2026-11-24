@@ -42,7 +42,7 @@ foreach ($engine in 'cp_sat','cplex_cp','cplex_mip','gurobi_mip') {
 .\.venv\Scripts\python scripts/solve.py data/toy/cycle6.json --method gurobi_mip --time-limit-seconds 10
 ```
 
-Cả sáu phương pháp chạy được qua CLI và benchmark. Smoke dùng hai đồ thị nhỏ, cho 12 lượt. CPLEX CP cần CP Optimizer trên PATH. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
+Benchmark sáu phương pháp trên ba graph có 18 lượt trong `results/raw/six_method_benchmark.jsonl`. Smoke ban đầu có 12 lượt trong `results/raw/six_method_smoke.jsonl`; smoke mới trên máy Windows được lưu riêng ở `results/raw/six_method_smoke_fresh.jsonl` (10 `OPTIMAL`, 2 CPLEX CP lỗi do không tìm thấy `cpoptimizer` trên PATH). Lỗi thiếu executable không có nghĩa graph vô nghiệm. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
 
 ~~~powershell
 .\.venv\Scripts\python scripts/benchmark.py --config configs/smoke.json
@@ -79,3 +79,22 @@ Cài thêm dependency hình bằng:
 ~~~
 
 Script giữ nguyên các trạng thái lỗi/timeout và chỉ vẽ so sánh khi log có đủ dữ liệu; `--check-only` chỉ sinh bảng CSV, không cần `cnsplots`.
+## Kết quả và khả năng tái lập
+
+Snapshot hiện có 3 đồ thị đã xác minh trong `data/manifest.csv` (JGL009, BCSSTK01, BP 400), không phải toàn bộ 28 ứng viên trong candidate list. Batch sáu phương pháp gồm 18 lượt nằm tại `results/raw/six_method_benchmark.jsonl`; smoke ban đầu gồm 12 lượt tại `results/raw/six_method_smoke.jsonl`, smoke mới gồm 12 lượt tại `results/raw/six_method_smoke_fresh.jsonl`. Mỗi lượt benchmark chính có ngân sách 300 giây, một luồng. Log giữ riêng `status` và `termination_reason`: timeout, license error và preflight size guard không được xem là cùng một loại kết quả.
+
+Để kiểm tra witness, cập nhật lower bound độc lập, CSV và bảng LaTeX từ log:
+
+```powershell
+.\.venv\Scripts\python scripts/plot_results.py --input results/raw/six_method_benchmark.jsonl --manifest data/manifest.csv --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex --check-only
+```
+
+`--check-only` không cần `cnsplots`; để tái sinh hình, cài `.[plots]` và bỏ `--check-only`. Xem `HANDOFF_NINH_HUNG.md` để biết kết quả kiểm chứng, giới hạn license/môi trường, và cách diễn giải các batch.
+
+Lưu ý: không tự động thay `report/main.pdf` trong quá trình kiểm tra dữ liệu/checksum. Dùng bản PDF đã được nhóm chốt sau khi trưởng nhóm xác nhận nội dung báo cáo.
+
+Các file quan trọng (manifest, graph JSON, raw benchmark/smoke logs, summary CSV, bảng LaTeX và PDF/hình báo cáo) có SHA-256 trong `CHECKSUMS.sha256`. Kiểm tra sau khi giải nén bằng:
+
+```powershell
+Get-Content CHECKSUMS.sha256 | ForEach-Object { $p = ($_ -split '  ', 2); $actual = (Get-FileHash -Algorithm SHA256 $p[1]).Hash.ToLower(); if ($actual -ne $p[0]) { Write-Error "Checksum mismatch: $($p[1])" } }
+```
