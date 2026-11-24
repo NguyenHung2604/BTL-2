@@ -1,45 +1,125 @@
-\section{Mã hóa Order (Order Encoding)}
+\section{Order Encoding}
 
-\subsection{Mô hình hóa và cấu trúc mệnh đề}
-Xét đồ thị vô hướng $G = (V, E)$ với $n = |V|$ đỉnh (đánh số $0, 1, \dots, n-1$), $m = |E|$ cạnh và ngưỡng băng thông vòng nguyên $K$. Khoảng cách vòng giữa hai vị trí $i, j \in \{0, 1, \dots, n-1\}$ được định nghĩa là:
+\subsection{Model and clause structure}
+Let $G=(V,E)$ be an undirected graph with $n=|V|$ vertices numbered
+$0,\ldots,n-1$ and $m=|E|$ edges. Let $K$ be an integer threshold for the
+cyclic bandwidth. The cyclic distance between positions $i$ and $j$ is
 \[
-d_c(i, j) = \min\big(|i - j|,\; n - |i - j|\big).
+d_c(i,j)=\min\bigl(|i-j|,\;n-|i-j|\bigr).
 \]
-Thay vì biểu diễn trực tiếp đỉnh $v$ nằm ở đúng vị trí $i$, \textit{Order Encoding} (\texttt{order.py}) sử dụng các biến mệnh đề ngưỡng $y_{v,t}$ với $v \in \{0, \dots, n-1\}$ và $t \in \{0, \dots, n-2\}$, mang ngữ nghĩa:
+The order encoding in \texttt{order.py} represents the position $p(v)$ of
+each vertex $v$ using Boolean threshold variables $y_{v,t}$ for
+$t\in\{0,\ldots,n-2\}$, where
 \[
-y_{v,t} \iff \big(p(v) \le t\big),
+y_{v,t}\iff p(v)\le t.
 \]
-cùng quy ước ngầm định tại hai biên $p(v) \le -1$ luôn sai và $p(v) \le n-1$ luôn đúng. Công thức CNF $F(K)$ gồm ba nhóm ràng buộc chính:
+At the boundaries, $p(v)\le -1$ is always false and $p(v)\le n-1$ is
+always true. The CNF formula $F(K)$ contains three groups of constraints.
 \begin{enumerate}
-    \item \textbf{Tính đơn điệu (Monotonicity):} Với mỗi $v \in V$ và $t \in \{0, \dots, n-3\}$, mệnh đề $(\neg y_{v,t} \lor y_{v,t+1})$ đảm bảo nếu $p(v) \le t$ thì $p(v) \le t + 1$.
-    \item \textbf{Khác vị trí (All-Different):} Điều kiện $p(v) \neq i$ được mã hóa qua hàm \texttt{different\_from(v, i, n)} dưới dạng $(p(v) \le i-1) \lor (p(v) > i)$, tự động rút gọn thành $\neg y_{v,0}$ tại $i = 0$ và $y_{v,n-2}$ tại $i = n-1$. Với mọi cặp đỉnh $u < v$ và mọi vị trí $i \in \{0, \dots, n-1\}$, mệnh đề $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, i, n)$ cấm hai đỉnh trùng vị trí.
-    \item \textbf{Giới hạn khoảng cách vòng $\le K$:} Khi $K < 0$, công thức trả về mệnh đề rỗng $\square$ (UNSAT). Khi $K \ge \lfloor n/2 \rfloor$, mọi hoán vị đều có khoảng cách vòng tối đa không vượt quá $\lfloor n/2 \rfloor \le K$ nên không cần thêm mệnh đề cạnh. Khi $0 \le K < \lfloor n/2 \rfloor$, với mỗi cạnh $(u, v) \in E$ và mọi cặp vị trí $(i, j)$ thỏa $d_c(i, j) > K$, thêm mệnh đề cấm $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, j, n)$.
+\item \textbf{Monotonicity.} For each $v\in V$ and $0\le t\le n-3$,
+the clause $\neg y_{v,t}\lor y_{v,t+1}$ enforces the implication
+$p(v)\le t\implies p(v)\le t+1$.
+\item \textbf{All-different constraint.} The function
+\texttt{different\_from(v, i, n)} encodes $p(v)\ne i$ as
+$(p(v)\le i-1)\lor(p(v)>i)$. This simplifies to $\neg y_{v,0}$ at $i=0$
+and to $y_{v,n-2}$ at $i=n-1$. For each pair of vertices $u<v$ and
+each position $i$, the clause
+\[
+\operatorname{different\_from}(u,i,n)\lor
+\operatorname{different\_from}(v,i,n)
+\]
+prevents both vertices from occupying position $i$.
+\item \textbf{Cyclic distance bound.} If $K<0$, the encoding returns the
+empty clause $\square$, making the formula unsatisfiable. If
+$K\ge\lfloor n/2\rfloor$, every permutation satisfies the bound because
+the maximum possible cyclic distance is $\lfloor n/2\rfloor$, so no edge
+clauses are needed. For $0\le K<\lfloor n/2\rfloor$, the encoding adds
+the following clause for every edge $(u,v)\in E$ and every ordered pair
+of positions $(i,j)$ with $d_c(i,j)>K$:
+\[
+\operatorname{different\_from}(u,i,n)\lor
+\operatorname{different\_from}(v,j,n).
+\]
 \end{enumerate}
 
-\textbf{Độ phức tạp mã hóa:} Công thức sử dụng chính xác $n(n-1) = \Theta(n^2)$ biến boolean, $n(n-2) = O(n^2)$ mệnh đề đơn điệu, $\binom{n}{2}n = O(n^3)$ mệnh đề All-Different và tối đa $O(m \cdot n^2)$ mệnh đề ràng buộc cạnh (tương ứng $m \cdot n(n - 2K - 1)$ khi $n$ chẵn và $0 \le K < n/2$), cho tổng kích thước CNF là $O(n^3 + m \cdot n^2)$ mệnh đề.
+\textbf{Encoding complexity.} For $n\ge 2$ and $K\ge 0$, the formula uses
+$n(n-1)=\Theta(n^2)$ Boolean variables, $n(n-2)=O(n^2)$ monotonicity
+clauses, and $n\binom{n}{2}=O(n^3)$ all-different clauses. The edge
+constraints contribute $O(mn^2)$ clauses. For even $n$ and $0\le K<n/2$,
+the exact number of edge clauses is $mn(n-2K-1)$. The total clause count
+is therefore $O(n^3+mn^2)$.
 
-\subsection{Chứng minh tính đúng đắn và tính tối ưu}
+\subsection{Proof of correctness and optimality}
 \begin{cbmptheorem}
-Với mọi đồ thị $G=(V,E)$ có $n \ge 2$ đỉnh và ngưỡng nguyên $K \ge 0$, công thức $F(K)$ là \textbf{SAT} khi và chỉ khi tồn tại một hoán vị $p : V \to \{0, \dots, n-1\}$ sao cho $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$.
+For every graph $G=(V,E)$ with $n\ge 2$ vertices and every integer
+threshold $K\ge 0$, the formula $F(K)$ is satisfiable if and only if
+there exists a permutation $p:V\to\{0,\ldots,n-1\}$ such that
+$d_c(p(u),p(v))\le K$ for every edge $(u,v)\in E$.
 \end{cbmptheorem}
 
 \begin{proof}
-\textbf{Chiều thuận (Từ cách xếp sang SAT):} Giả sử tồn tại hoán vị $p$ đạt $\max_{(u,v) \in E} d_c(p(u), p(v)) \le K$. Gán $y_{v,t} = \text{True} \iff p(v) \le t$ cho mọi $v \in \{0, \dots, n-1\}$ và $t \in \{0, \dots, n-2\}$. Vì $p(v) \le t \implies p(v) \le t+1$ nên các mệnh đề đơn điệu đều đúng. Vì $p$ là hoán vị nên với mọi $u \neq v$ và mọi $i$, không thể có $p(u) = p(v) = i$, do đó ít nhất một trong hai vế của mệnh đề All-Different tại vị trí $i$ đánh giá là đúng. Tương tự, với mỗi cạnh $(u,v) \in E$ và cặp $(i, j)$ có $d_c(i,j) > K$, ta luôn có $(p(u), p(v)) \neq (i, j)$, nên mệnh đề cấm cạnh tương ứng được thỏa mãn. Vậy $F(K)$ là SAT.
+Suppose that a permutation $p$ satisfies the bound on every edge.
+Set $y_{v,t}$ to true exactly when $p(v)\le t$. All monotonicity clauses
+hold because $p(v)\le t$ implies $p(v)\le t+1$. Since $p$ assigns
+distinct positions to distinct vertices, at least one disjunct in each
+all-different clause is true. For every edge $(u,v)$ and every pair
+$(i,j)$ with $d_c(i,j)>K$, the bound on $p$ guarantees that
+$(p(u),p(v))\ne(i,j)$. Hence every edge clause holds, and $F(K)$ is
+satisfiable.
 
-\textbf{Chiều đảo (Từ SAT về cách xếp):} Giả sử $F(K)$ là SAT với mô hình $\mathcal{M}$. Hàm \texttt{decode} lấy chỉ số $t \in \{0, \dots, n-2\}$ nhỏ nhất có $y_{v,t}$ đúng, hoặc trả về $n-1$ nếu mọi $y_{v,t}$ đều sai:
+Conversely, suppose that $\mathcal{M}$ satisfies $F(K)$. For each vertex
+$v$, the function \texttt{decode} selects the smallest index $t$ for
+which $y_{v,t}$ is true, or returns $n-1$ if all thresholds are false.
 \begin{itemize}
-    \item \emph{Tính duy nhất của vị trí giải mã và các trường hợp biên:} Do các mệnh đề $(\neg y_{v,t} \lor y_{v,t+1})$, các giá trị đúng của chuỗi ngưỡng tạo thành một hậu tố liên tiếp. Ở hai trường hợp biên khi $n \ge 2$: nếu chuỗi toàn đúng ($y_{v,0} = \text{True}$), ngưỡng nhỏ nhất là $0$ nên $p(v) = 0$; nếu chuỗi toàn sai ($y_{v,t} = \text{False}$ với mọi $t \le n-2$), hàm \texttt{decode} trả về giá trị mặc định $p(v) = n - 1$ (tương thích quy ước $p(v) \le n-1$ luôn đúng). Do đó mỗi đỉnh $v$ nhận duy nhất một vị trí $p(v) \in \{0, \dots, n-1\}$ thỏa mãn $y_{v,t} = \text{True} \iff p(v) \le t$.
-    \item \emph{Tính hoán vị và giới hạn băng thông vòng:} Nếu hai đỉnh $u \neq v$ nhận cùng vị trí $i$, cả hai vế của mệnh đề $\texttt{different\_from}(u, i, n) \lor \texttt{different\_from}(v, i, n)$ đều sai dưới $\mathcal{M}$, mâu thuẫn với tính thỏa mãn của $\mathcal{M}$; vậy $p$ là hoán vị. Tương tự, khi $K < \lfloor n/2 \rfloor$, nếu tồn tại cạnh $(u, v) \in E$ có $d_c(p(u), p(v)) > K$ thì mệnh đề cấm ứng với cặp $(p(u), p(v))$ bị vi phạm. Khi $K \ge \lfloor n/2 \rfloor$, bất đẳng thức $d_c(p(u), p(v)) \le \lfloor n/2 \rfloor \le K$ hiển nhiên đúng.
+\item \emph{Uniqueness and boundary cases.} By monotonicity, the true
+entries in each threshold sequence form a suffix. If all entries are true,
+the first true index is $0$, giving $p(v)=0$. If all are false, the
+decoder returns $p(v)=n-1$, consistent with the upper boundary
+convention. Thus each vertex receives a unique position satisfying
+$y_{v,t}\iff p(v)\le t$ for every threshold $t$.
+\item \emph{Permutation and cyclic bandwidth bound.} If two vertices
+decoded to the same position $i$, both disjuncts in their all-different
+clause for $i$ would be false. Thus the $n$ vertices occupy $n$ distinct
+positions and $p$ is a permutation. When $K<\lfloor n/2\rfloor$, an edge
+with $d_c(p(u),p(v))>K$ would violate the clause for the ordered pair
+$(p(u),p(v))$. When $K\ge\lfloor n/2\rfloor$, the bound follows directly
+from $d_c(p(u),p(v))\le\lfloor n/2\rfloor\le K$.
 \end{itemize}
-Từ hai chiều trên, $F(K)$ là SAT khi và chỉ khi tồn tại cách xếp $p$ có cyclic bandwidth $\le K$.
+The decoded permutation therefore has cyclic bandwidth at most $K$.
 \end{proof}
 
-\textbf{Lập luận tính tối ưu:} Vì $d_c(p(u), p(v)) \le K_1 \implies d_c(p(u), p(v)) \le K_2$ với mọi $K_1 \le K_2$, tính thỏa mãn của $F(K)$ là đơn điệu không giảm theo $K$ trên đoạn $[0, \lfloor n/2 \rfloor]$. Do đó, giá trị $\hat{K}$ tìm được bởi phép duyệt tăng dần (gặp SAT đầu tiên) hoặc tìm kiếm nhị phân thỏa mãn đồng thời $F(\hat{K})$ là SAT và $F(\hat{K} - 1)$ là UNSAT chính là cyclic bandwidth tối ưu toàn cục $K^*$ của đồ thị.
+\textbf{Optimality.} For $K_1\le K_2$, any permutation satisfying the
+bound $K_1$ also satisfies the bound $K_2$. Satisfiability of $F(K)$ is
+therefore monotone over the integer interval $[0,\lfloor n/2\rfloor]$.
+An ascending search that stops at the first satisfiable threshold, or a
+binary search for the smallest satisfiable threshold, returns $\hat K$
+such that $F(\hat K)$ is satisfiable and $F(\hat K-1)$ is unsatisfiable.
+Hence $\hat K$ is the globally optimal cyclic bandwidth $K^*$.
 
-\subsection{Kiểm chứng và so sánh có đối chứng}
-Trong lượt smoke trên \texttt{path5} và \texttt{cycle6}, cách xếp ban đầu có bandwidth 1 bằng cận dưới theo bậc. Runner kết thúc ngay ở cả hai đồ thị. Phép kiểm tra riêng trong \texttt{scripts/inc\_order.py} thực sự dựng CNF ở $K=0,1$, giải mã mô hình SAT đầu tiên và kiểm tra nghiệm có bandwidth 1.
+\subsection{Verification and controlled comparison}
+In the smoke tests on \texttt{path5} and \texttt{cycle6}, the initial
+layout had cyclic bandwidth~1 on both graphs, matching the degree-based
+lower bound. The runner therefore terminated immediately in both cases.
+A separate check in \path{scripts/inc_order.py} built the CNF formulas
+for $K=0$ and $K=1$, decoded the first satisfying assignment, and verified
+that the resulting layout had cyclic bandwidth~1.
 
-Với \texttt{scrambled\_path8}, bốn biến thể dùng cùng Glucose3, cùng cận đầu, cùng chuỗi ngưỡng $3,2,1$ và cùng ngân sách 10 giây. Hai biến thể order đều chứng minh tối ưu bằng 1. Dựng lại solver ở từng ngưỡng nạp tổng cộng 1320 mệnh đề. Giữ nguyên solver và chỉ thêm các cặp vị trí vừa bị cấm nạp 552 mệnh đề. Hai con số là tổng số mệnh đề đầu vào trên toàn phép tìm kiếm. Hai biến thể pairwise cũng đạt tối ưu 1; việc neo đỉnh 0 vào vị trí 0 thêm một mệnh đề mỗi ngưỡng. Mẫu thử này minh họa chi phí dựng công thức. Log từng ngưỡng nằm trong \path{results/raw/week8_ablation.jsonl}.
+On \texttt{scrambled\_path8}, all four variants used Glucose3, the same
+initial bounds, the same sequence of thresholds ($3,2,1$), and a
+10-second budget for the full search. Both order-encoding variants proved
+that the optimum was~1. Rebuilding the solver at each threshold loaded
+1,320 input clauses across the search. Reusing the solver and adding
+clauses only for newly forbidden position pairs reduced this total to
+552. Both pairwise variants also attained the optimum of~1. Fixing vertex
+$0$ at position $0$ added one clause per threshold. These counts
+illustrate the cost of constructing the formulas on this instance.
+The per-threshold logs are in \path{results/raw/week8_ablation.jsonl}.
 
-\subsection{Đối chiếu với CP Optimizer}
-Mô hình CP dùng biến vị trí nguyên và ràng buộc khoảng cách vòng. Cả sáu phương pháp đi qua cùng runner. Với \texttt{path5} và \texttt{cycle6}, cả sáu trả nghiệm tối ưu 1 và validator kiểm tra độc lập từng hoán vị. Trong pilot 60 giây trên BCSSTK01, order tìm được nghiệm 13 và CP Optimizer tìm được nghiệm 12; cận dưới ghi nhận của cả hai là 6.
+\subsection{Comparison with CP Optimizer}
+The constraint programming model uses integer position variables and
+cyclic distance constraints. All six methods used the same runner. On
+\texttt{path5} and \texttt{cycle6}, all six returned an optimal layout
+with cyclic bandwidth~1, and the validator independently checked each
+permutation. In the 60-second pilot on BCSSTK01, the order encoding found
+a layout with cyclic bandwidth~13 and CP Optimizer found one with cyclic
+bandwidth~12. Both methods recorded a lower bound of~6.
