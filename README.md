@@ -42,7 +42,7 @@ foreach ($engine in 'cp_sat','cplex_cp','cplex_mip','gurobi_mip') {
 .\.venv\Scripts\python scripts/solve.py data/toy/cycle6.json --method gurobi_mip --time-limit-seconds 10
 ```
 
-Benchmark sáu phương pháp trên ba graph có 18 lượt trong `results/raw/six_method_benchmark.jsonl`. Smoke ban đầu có 12 lượt trong `results/raw/six_method_smoke.jsonl`; smoke mới trên máy Windows được lưu riêng ở `results/raw/six_method_smoke_fresh.jsonl` (10 `OPTIMAL`, 2 CPLEX CP lỗi do không tìm thấy `cpoptimizer` trên PATH). Lỗi thiếu executable không có nghĩa graph vô nghiệm. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
+Batch tại commit 9df7be6 có 18 lượt trong `results/raw/six_method_benchmark.jsonl`. Smoke ban đầu có 12 lượt trong `results/raw/six_method_smoke.jsonl`; smoke mới trên máy Windows được lưu riêng ở `results/raw/six_method_smoke_fresh.jsonl` (10 `OPTIMAL`, 2 CPLEX CP lỗi do không tìm thấy `cpoptimizer` trên PATH). Lỗi thiếu executable không có nghĩa graph vô nghiệm. Runner ghi JSONL và tiếp tục các lượt còn thiếu khi chạy lại cùng cấu hình.
 
 ~~~powershell
 .\.venv\Scripts\python scripts/benchmark.py --config configs/smoke.json
@@ -75,7 +75,7 @@ Cài thêm dependency hình bằng:
 Để xuất bảng sáu phương pháp trực tiếp vào báo cáo sau một batch:
 
 ~~~powershell
-.\.venv\Scripts\python scripts/plot_results.py --input results/raw/six_method_benchmark.jsonl --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex
+.\.venv\Scripts\python scripts/plot_results.py --input results/summary/report_audit/main_latest.jsonl --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex
 ~~~
 
 Script giữ nguyên các trạng thái lỗi/timeout và chỉ vẽ so sánh khi log có đủ dữ liệu; `--check-only` chỉ sinh bảng CSV, không cần `cnsplots`.
@@ -86,7 +86,7 @@ Snapshot hiện có 3 đồ thị đã xác minh trong `data/manifest.csv` (JGL0
 Để kiểm tra witness, cập nhật lower bound độc lập, CSV và bảng LaTeX từ log:
 
 ```powershell
-.\.venv\Scripts\python scripts/plot_results.py --input results/raw/six_method_benchmark.jsonl --manifest data/manifest.csv --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex --check-only
+.\.venv\Scripts\python scripts/plot_results.py --input results/summary/report_audit/main_latest.jsonl --manifest data/manifest.csv --output-dir results/summary/week8_main --verify-runs --tex-outcomes report/sections/six_method_table.tex --check-only
 ```
 
 `--check-only` không cần `cnsplots`; để tái sinh hình, cài `.[plots]` và bỏ `--check-only`. Xem `HANDOFF_NINH_HUNG.md` để biết kết quả kiểm chứng, giới hạn license/môi trường, và cách diễn giải các batch.
@@ -98,3 +98,29 @@ Các file quan trọng (manifest, graph JSON, raw benchmark/smoke logs, summary 
 ```powershell
 Get-Content CHECKSUMS.sha256 | ForEach-Object { $p = ($_ -split '  ', 2); $actual = (Get-FileHash -Algorithm SHA256 $p[1]).Hash.ToLower(); if ($actual -ne $p[0]) { Write-Error "Checksum mismatch: $($p[1])" } }
 ```
+
+## Reproduce the audited report
+
+Run from the repository root with the project dependencies and the plots extra.
+The historical main JSONL contains two 18-row batches. The report script
+selects the complete batch at 9df7be6 and keeps all original records intact.
+Blank native status/bound fields in the BCSSTK01 ledger mean unrecorded.
+Stored adapter bounds and independently validated objectives have separate columns.
+
+~~~powershell
+python scripts/report_evidence.py
+python scripts/plot_results.py --input results/summary/report_audit/main_latest.jsonl --output-dir results/summary/report_audit/main --verify-runs --tex-outcomes report/sections/six_method_table.tex --check-only
+~~~
+
+The additional normalized matrices are indexed by data/manifest_supplement.csv.
+Use configs/supplement.json for the 18 sequential runs and
+configs/supplement_cp_retry.json for the three IBM CP Optimizer retries.
+For a new run, pass --output with a new JSONL path. The historical CP errors
+and the three successful retries are kept separately.
+
+The separate 300-second SAT comparison on BCSPWR02 uses
+`configs/bcspwr02_final.json` and `results/raw/bcspwr02_final.jsonl`.
+From the repo root, use the benchmark runner with an unused output path
+to repeat the measurement. The report script reads the archived log.
+
+The original 18 main records remain in main_18.jsonl. The latest report view, main_latest.jsonl, substitutes only the two matching 300-second CPLEX Studio runs. The supplement substitutes the two 10-second CPLEX Studio runs on IBM32 and BCSPWR01.

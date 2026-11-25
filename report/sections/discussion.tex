@@ -10,32 +10,44 @@ $n(n-2)+n\binom{n}{2}$. A pairwise edge clause contains two literals.
 Excluding an interior position in the order encoding takes two threshold
 literals per endpoint, so an order edge clause can contain four.
 
-On BCSSTK01 ($n=48$, $m=176$), the two 300-second SAT runs started at
-$K=23$. Each vertex position has just one forbidden partner, the position
-diametrically opposite it. This contributes $176\cdot48=8{,}448$ edge
-clauses to either formula. Pairwise used 2,304 variables and 116,784
-clauses in total. Order used 2,256 variables and 64,800 clauses.
-The corresponding construction times, including loading clauses into
-Glucose3, were 0.191 and 0.377 seconds. Clause count alone therefore
-did not predict construction time on this instance.
+On BCSSTK01 ($n=48$, $m=176$), each position at $K=23$ excludes only
+its diametrical opposite. Both encodings therefore add $176\cdot48=8{,}448$
+edge clauses. Order used 44.5\% fewer clauses overall, but took longer
+to construct and load in this observation (Table~\ref{tab:k23}).
+Figure~\ref{fig:thresholds} compares only thresholds visited by both runs ($K=23$ down to 12).
+Each unit decrease in $K$ forbids two more partners per position and adds
+$2\cdot48\cdot176=16{,}896$ edge clauses to either formula. The assignment
+clauses are independent of $K$, so the two lines are parallel, separated
+by 51,984 clauses throughout. The relative reduction of 44.5\% applies
+only at $K=23$.
+
+\input{sections/k23_table}
+\begin{figure}[htbp]\centering
+\includegraphics[width=0.82\linewidth]{bcsstk01_thresholds}
+\caption{Input clauses in each newly built BCSSTK01 formula, at matched
+thresholds in the 300-second run at commit \texttt{9df7be6}. Counts
+come from the per-decision histories in the six-method JSONL.}
+\label{fig:thresholds}\end{figure}
 
 \subsection{From formula size to search outcomes}
+\begin{samepage}
 Across all thresholds on BCSSTK01, pairwise built 13 formulas with
 2,836,080 clauses in 3.390 seconds and reached bandwidth 12. Order built
 12 formulas with 1,892,736 clauses in 5.746 seconds and reached bandwidth
 13. These totals sum the input clauses over successive builds. The final
 decisions at $K=11$ and $K=12$, respectively, timed out, leaving both
-SAT runs with the degree lower bound of 6. In the original five-method
-batch, CP-SAT certified 12 on the same graph. That certificate establishes
-the quality of the pairwise layout retrospectively. The pairwise run
-itself returned a feasible solution.
+SAT runs with the degree lower bound of 6. In the six-method 300-second run, CP-SAT returned 12 with a stored lower
+bound of 0; the degree bound raises the reported lower bound to 6.
+In the separate day-8 pilot, the CP-SAT adapter recorded OPTIMAL at 12.
+Thus the pairwise layout attained the optimum, although its own run
+ended with bounds $[6,12]$.
+\end{samepage}
 
 \subsection{Limits of the comparison}
 Only BCSSTK01 exercised both SAT encodings in the three-graph rerun.
-On JGL009 the initial bandwidth of 4 matched the degree lower bound
-before either formula was built. On BP~400 both methods hit the size
-guard before search. These cases show where the current implementation
-can save construction work and where it reaches its resource limit.
-One timed comparison, with some concurrent local work, cannot establish
-a runtime ranking or isolate the effect of clause width. The per-threshold
-measurements are archived in \path{results/raw/six_method_benchmark.jsonl}.
+JGL009 closes at the degree bound and BP~400 triggers the guard.
+The supplement adds two informative cases: both encodings proved 4 on
+BCSPWR01 and returned $[6,9]$ on IBM32. IBM CP Optimizer also reached 9 on IBM32, but tightened the lower
+bound to 7. On BCSPWR01 both CP engines and both SAT encodings proved 4;
+Gurobi stopped with bounds $[3,6]$. These few observations cannot
+isolate the effect of clause width or support a general runtime ranking.

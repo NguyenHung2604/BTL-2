@@ -269,13 +269,16 @@ def _write_outcomes_tex(path, records, manifest_rows):
     limits = {r["time_limit"] for r in records}
     if len(limits) != 1:
         raise ValueError("Mixed time limits in one table")
+    studio_note = (" The two smaller CPLEX MIP entries are separate Studio reruns."
+                   if any(r["method"] == "cplex_mip" and r["graph_id"] == "jgl009"
+                          and r["status"] == "OPTIMAL" for r in records) else "")
     lines = [r"\begin{table}[htbp]", r"\centering\small",
              rf"\caption{{Six-method rerun, {limits.pop():g} seconds per graph and method. "
-             r"A single value is a proven optimum; brackets give the certified lower bound "
-             r"and the validated incumbent at timeout.}",
+             r"Three graphs, one thread. Single values are proven optima. Brackets give the larger of the recorded and degree lower bounds "
+             r"and the validated incumbent at timeout. Size guard means rejection before solving (runtime N/A)." + studio_note + "}",
              r"\label{tab:six-method-rerun}",
              r"\begin{tabular}{l" + "c" * len(instances) + "}", r"\hline",
-             "Method & " + " & ".join(s.replace("_", r"\_") for s in instances) + r" \\", r"\hline"]
+             "Method & " + " & ".join(("BP 400" if s == "bp___400" else s.upper()) for s in instances) + r" \\", r"\hline"]
     for method, display_name in methods.items():
         cells = [display_name]
         for name in instances:
@@ -291,7 +294,7 @@ def _write_outcomes_tex(path, records, manifest_rows):
             cells.append(cell)
         lines.append(" & ".join(cells) + r" \\")
     lines.extend([r"\hline", r"\end{tabular}", r"\end{table}"])
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.write_bytes(("\n".join(lines) + "\n").encode("utf-8"))
 
 
 def main() -> int:

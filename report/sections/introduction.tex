@@ -14,19 +14,12 @@ bandwidth is impossible. This distinction matters when a solver reaches its
 time limit. A run can yield a useful layout even while the optimum remains
 unknown.
 
-We study three questions:
-\begin{enumerate}
-\item How do direct pairwise and order encodings compare in variable count,
-      clause count, construction time and time to prove optimality?
-\item On identical graphs and under a common wall-clock budget, which
-      methods find the smallest validated bandwidth and which close the
-      gap to the lower bound?
-\item How do graph size, edge density and maximum degree affect model
-      construction, memory use and the bounds available at timeout?
-\end{enumerate}
+We ask how the encodings differ in variable count, clause count and build
+time at a shared threshold, and which layouts and bounds the methods obtain
+under each experimental budget.
 
 Section~\ref{sec:pairwise} gives the direct encoding, its size at a fixed
 threshold and the search procedure used in the pilot. The experimental
-comparison uses small graphs with exhaustive reference answers to check
+comparison uses small graphs with known optima to check
 correctness, and graphs derived from Harwell--Boeing matrices to study
 performance.

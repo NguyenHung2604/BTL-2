@@ -1,0 +1,20 @@
+{
+  "description": "CPLEX Studio rerun using the original graph and time budget",
+  "methods": [
+    "cplex_mip"
+  ],
+  "planned_methods": [],
+  "time_limit_seconds": 300,
+  "threads": 1,
+  "seed": 0,
+  "max_constraints": 1000000,
+  "max_sat_variables": 1000000,
+  "max_sat_clauses": 1000000,
+  "output": "results/raw/cplex_studio_main.jsonl",
+  "resume": true,
+  "solver_output": false,
+  "instances": [
+    "data/benchmarks/harwell_boeing/graphs/jgl009.json",
+    "data/benchmarks/harwell_boeing/graphs/bcsstk01.json"
+  ]
+}

@@ -3,7 +3,8 @@
 from math import ceil, isfinite
 from time import perf_counter
 
-from docplex.cp import config as cpo_config
+from pathlib import Path
+from shutil import which
 from docplex.cp.model import CpoModel
 
 from ..graph import Graph
@@ -89,8 +90,6 @@ def solve(graph: Graph, time_limit_seconds: float, *, seed=0, threads=1) -> Solv
     result = SolveResult(graph.name, "cplex_cp", "FEASIBLE", "timeout", 0.0,
                          labels, best, lower)
     if graph.edges and perf_counter() < deadline:
-        cpo_config.context.solver.local.execfile = CPO_EXEC_PATH
-
         model = CpoModel(name="CBMP_CP")
         positions = [model.integer_var(0, graph.n - 1, name=f"p_{u}") for u in graph.vertices]
         model.add(model.all_diff(positions))
@@ -106,7 +105,11 @@ def solve(graph: Graph, time_limit_seconds: float, *, seed=0, threads=1) -> Solv
         remaining = deadline - perf_counter()
         if remaining > 0:
             solving = perf_counter()
-            solution = model.solve(TimeLimit=remaining, TimeMode="ElapsedTime",
+            executable = which("cpoptimizer")
+            if executable is None and Path(CPO_EXEC_PATH).is_file():
+                executable = CPO_EXEC_PATH
+            options = {"execfile": executable} if executable else {}
+            solution = model.solve(**options, TimeLimit=remaining, TimeMode="ElapsedTime",
                                    Workers=threads, RandomSeed=seed, trace_log=False)
             result.solve_time = perf_counter() - solving
             result.solver_version = solution.get_process_infos().get_solver_version()

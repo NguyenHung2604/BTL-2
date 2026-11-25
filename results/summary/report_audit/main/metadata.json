@@ -1,0 +1,9 @@
+{
+  "input": "results/summary/report_audit/main_latest.jsonl",
+  "input_sha256": "ee4d1be72e8b346abd6f1b901d48acaf4c4b7d784bb4e75ecea59ff9fe5cfdfb",
+  "manifest": "data/manifest.csv",
+  "witnesses_rechecked": true,
+  "num_runs": 18,
+  "num_datasets": 3,
+  "plot_library": "cnsplots"
+}

@@ -31,47 +31,32 @@ The $n^2$ assignment variables and $mn^2$ edge--position constraints make
 this direct formulation impractical on BP 400. The runner's one-million-
 constraint preflight limit rejects that instance before allocating the MIP
 model. This is a configured resource guard, not an optimizer result, timeout,
-or infeasibility proof. On JGL009 and BCSSTK01, CPLEX MIP returned Community
-Edition license errors. Gurobi MIP, by contrast, proved the JGL009 optimum
-and returned a validated incumbent on BCSSTK01 before its time limit. These
-records do not provide a like-for-like comparison of the two MIP backends on
-both instances because CPLEX could not solve either one under its available
-license.
+or infeasibility proof.
 
 \subsection{Six-method benchmark outcomes}
-The main batch contains 18 records: three verified graphs evaluated with six
-methods. Each run used a 300-second target, one requested thread, and seed
-zero where supported. The budget covers model construction and solving; native
-solver shutdown and cleanup can cause the recorded wall time to exceed 300
-seconds slightly. The generated table (Table~\ref{tab:six-method-rerun}) is derived from
-\texttt{results/raw/six\_method\_benchmark.jsonl}; a single numeric value
-is a proven optimum, while $[LB,UB]$ reports the certified lower bound and
-the validated incumbent when optimality was not proved.
+The consolidated table contains 18 method--instance entries. Fourteen
+have validated layouts, including the two CPLEX Studio reruns. The
+remaining four were stopped by the BP 400 size guards.
+Table~\ref{tab:six-method-rerun} uses a 300-second budget and one thread
+per entry. Sixteen entries come from the original batch at commit
+\texttt{9df7be6}. The JGL009 and BCSSTK01 entries for IBM CPLEX MIP
+come from Studio 22.2 reruns with the same formulation and budget.
 
-
-On JGL009, pairwise SAT, order SAT, CP-SAT, Gurobi MIP, and CP Optimizer
-proved an optimum of 4; CPLEX MIP terminated with a license error. On
-BCSSTK01, all methods except CPLEX MIP returned validated feasible layouts,
-but none proved optimality within the 300-second target. Their incumbents
-were 12 (pairwise SAT, CP-SAT, and CP Optimizer), 13 (order SAT), and 15
-(Gurobi MIP); the independently certified lower bound was 6. CPLEX MIP
-returned a Community Edition license error. On BP 400, pairwise SAT and
+All six methods proved 4 on JGL009. On BCSSTK01, pairwise SAT and both CP
+engines reached 12, order SAT reached 13, Gurobi MIP reached 15, and CPLEX
+MIP reached 18. All six runs ended with a reported lower bound of 6 and
+without an optimality proof. CPLEX reported a solver bound of 1, which
+the independent degree bound strengthened to 6. On BP 400, pairwise SAT and
 order SAT were rejected by their estimated-size guards, and both MIP
 adapters were rejected by the one-million-constraint guard before solver
 startup. CP-SAT and CP Optimizer returned validated incumbents of 399 and
 263, respectively, with certified lower bound 147, but neither proved
 optimality within the time limit.
 
-A timeout with a feasible incumbent is not an optimality proof. Similarly,
-a license error or a preflight guard is not a timeout and must not be
-reported as solver infeasibility. In particular, the BP 400 SAT/MIP guard
-records have zero solver runtime because the corresponding solver was never
-started. The separate historical 60-second pilot is reported in
-Section~\ref{sec:experiments} and must not be merged with this six-method,
-300-second batch.
+Solver runtime is N/A for the four guarded BP~400 runs.
 
 \subsection{Experimental limitations}
-The verified manifest contains three graphs, not the full 28-instance
+The historical main manifest contains three graphs, not the full 28-instance
 candidate list in Table A.2 of Ren et al. The set provides a small dense,
 medium sparse, and larger sparse example, but is too small for broad
 statistical or scalability claims. BP 400 is an additional Harwell--Boeing /
@@ -80,9 +65,8 @@ $m$ is the number of unique undirected edges after removing self-loops and
 merging duplicate or opposite-direction entries; it is not the raw matrix
 nonzero count.
 
-Comparisons are further limited by solver licensing, the configured model-size
-guards, and the fact that some methods timed out without proving optimality.
-The run records preserve these distinctions. Runtime rankings across the
-three instances would not be meaningful, and conclusions about solution
-quality should be restricted to validated incumbents and certified lower
-bounds.
+Both MIP solvers produced validated layouts on four matrix graphs:
+JGL009, BCSSTK01, IBM32 and BCSPWR01. Only JGL009 yielded an optimality
+proof from both. The other three comparisons measure the layouts and
+bounds reached within each budget. BP~400 provides a model-size estimate
+only, and the separate BCSPWR02 experiment evaluated the SAT encodings.

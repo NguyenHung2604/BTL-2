@@ -1,10 +1,9 @@
 \section{Conclusion}
-Six solver adapters now share a benchmark runner with independent validation.
-All six obtained bandwidth 1 on both toy graphs. The original five-method
-benchmark certified bandwidth 12 on BCSSTK01 with CP-SAT. A later run on
-the same graph may return a feasible layout of value 12 while leaving a
-gap between its own bounds; each table therefore reports proof status per run.
-On the scrambled eight-vertex path, reusing the order solver reduced the
-total input clauses from 1320 to 552 over the same three thresholds.
-The three-matrix dataset and the observed license, memory, and model-size
-limits restrict conclusions about relative performance.
+At matched thresholds, order produced fewer clauses. Under the same
+300-second budget on BCSSTK01, pairwise reached bandwidth 12 and order
+reached 13. Their last thresholds were 11 and 12, respectively.
+The five-method pilot independently certified 12 with OR-Tools CP-SAT.
+Both SAT encodings reached 9 on IBM32 and proved 4 on BCSPWR01 under the
+separate 10-second protocol. On BCSPWR02, the 300-second runs improved the identity bandwidth of 24 to 7 (pairwise) and 7 (order). These observations cover four of the six matrix graphs
+that actually reached SAT search. They do not establish a general runtime
+ranking.
