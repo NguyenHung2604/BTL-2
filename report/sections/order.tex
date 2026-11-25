@@ -5,7 +5,7 @@ Let $G=(V,E)$ be an undirected graph with $n=|V|$ vertices numbered
 $0,\ldots,n-1$ and $m=|E|$ edges. Let $K$ be an integer threshold for the
 cyclic bandwidth. The cyclic distance between positions $i$ and $j$ is
 \[
-d_c(i,j)=\min\bigl(|i-j|,\;n-|i-j|\bigr).
+d_n(i,j)=\min\bigl(|i-j|,\;n-|i-j|\bigr).
 \]
 The order encoding in \texttt{order.py} represents the position $p(v)$ of
 each vertex $v$ using Boolean threshold variables $y_{v,t}$ for
@@ -20,13 +20,13 @@ always true. The CNF formula $F(K)$ contains three groups of constraints.
 the clause $\neg y_{v,t}\lor y_{v,t+1}$ enforces the implication
 $p(v)\le t\implies p(v)\le t+1$.
 \item \textbf{All-different constraint.} The function
-\texttt{different\_from(v, i, n)} encodes $p(v)\ne i$ as
+\texttt{different\_from(v, i, n)} encodes $D(v,i)$, the condition $p(v)\ne i$, as
 $(p(v)\le i-1)\lor(p(v)>i)$. This simplifies to $\neg y_{v,0}$ at $i=0$
 and to $y_{v,n-2}$ at $i=n-1$. For each pair of vertices $u<v$ and
 each position $i$, the clause
 \[
-\operatorname{different\_from}(u,i,n)\lor
-\operatorname{different\_from}(v,i,n)
+D(u,i)\lor
+D(v,i)
 \]
 prevents both vertices from occupying position $i$.
 \item \textbf{Cyclic distance bound.} If $K<0$, the encoding returns the
@@ -35,10 +35,10 @@ $K\ge\lfloor n/2\rfloor$, every permutation satisfies the bound because
 the maximum possible cyclic distance is $\lfloor n/2\rfloor$, so no edge
 clauses are needed. For $0\le K<\lfloor n/2\rfloor$, the encoding adds
 the following clause for every edge $(u,v)\in E$ and every ordered pair
-of positions $(i,j)$ with $d_c(i,j)>K$:
+of positions $(i,j)$ with $d_n(i,j)>K$:
 \[
-\operatorname{different\_from}(u,i,n)\lor
-\operatorname{different\_from}(v,j,n).
+D(u,i)\lor
+D(v,j).
 \]
 \end{enumerate}
 
@@ -54,7 +54,7 @@ is therefore $O(n^3+mn^2)$.
 For every graph $G=(V,E)$ with $n\ge 2$ vertices and every integer
 threshold $K\ge 0$, the formula $F(K)$ is satisfiable if and only if
 there exists a permutation $p:V\to\{0,\ldots,n-1\}$ such that
-$d_c(p(u),p(v))\le K$ for every edge $(u,v)\in E$.
+$d_n(p(u),p(v))\le K$ for every edge $(u,v)\in E$.
 \end{cbmptheorem}
 
 \begin{proof}
@@ -63,7 +63,7 @@ Set $y_{v,t}$ to true exactly when $p(v)\le t$. All monotonicity clauses
 hold because $p(v)\le t$ implies $p(v)\le t+1$. Since $p$ assigns
 distinct positions to distinct vertices, at least one disjunct in each
 all-different clause is true. For every edge $(u,v)$ and every pair
-$(i,j)$ with $d_c(i,j)>K$, the bound on $p$ guarantees that
+$(i,j)$ with $d_n(i,j)>K$, the bound on $p$ guarantees that
 $(p(u),p(v))\ne(i,j)$. Hence every edge clause holds, and $F(K)$ is
 satisfiable.
 
@@ -81,9 +81,9 @@ $y_{v,t}\iff p(v)\le t$ for every threshold $t$.
 decoded to the same position $i$, both disjuncts in their all-different
 clause for $i$ would be false. Thus the $n$ vertices occupy $n$ distinct
 positions and $p$ is a permutation. When $K<\lfloor n/2\rfloor$, an edge
-with $d_c(p(u),p(v))>K$ would violate the clause for the ordered pair
+with $d_n(p(u),p(v))>K$ would violate the clause for the ordered pair
 $(p(u),p(v))$. When $K\ge\lfloor n/2\rfloor$, the bound follows directly
-from $d_c(p(u),p(v))\le\lfloor n/2\rfloor\le K$.
+from $d_n(p(u),p(v))\le\lfloor n/2\rfloor\le K$.
 \end{itemize}
 The decoded permutation therefore has cyclic bandwidth at most $K$.
 \end{proof}
@@ -91,10 +91,11 @@ The decoded permutation therefore has cyclic bandwidth at most $K$.
 \textbf{Optimality.} For $K_1\le K_2$, any permutation satisfying the
 bound $K_1$ also satisfies the bound $K_2$. Satisfiability of $F(K)$ is
 therefore monotone over the integer interval $[0,\lfloor n/2\rfloor]$.
-An ascending search that stops at the first satisfiable threshold, or a
-binary search for the smallest satisfiable threshold, returns $\hat K$
-such that $F(\hat K)$ is satisfiable and $F(\hat K-1)$ is unsatisfiable.
-Hence $\hat K$ is the globally optimal cyclic bandwidth $K^*$.
+A search for the smallest satisfiable threshold therefore finds the global
+optimum. Our benchmark starts from the identity bandwidth $B$, rebuilds
+the solver at $K=B-1$, and uses each improved validated bandwidth to set
+the next threshold. Only the controlled incremental variant retains clauses
+between decreasing thresholds.
 
 \subsection{Verification and controlled comparison}
 In the smoke tests on \texttt{path5} and \texttt{cycle6}, the initial
@@ -120,6 +121,7 @@ The constraint programming model uses integer position variables and
 cyclic distance constraints. All six methods used the same runner. On
 \texttt{path5} and \texttt{cycle6}, all six returned an optimal layout
 with cyclic bandwidth~1, and the validator independently checked each
-permutation. In the 60-second pilot on BCSSTK01, the order encoding found
-a layout with cyclic bandwidth~13 and CP Optimizer found one with cyclic
-bandwidth~12. Both methods recorded a lower bound of~6.
+permutation. In the independent order/CP pilot on BCSSTK01
+(\path{order_cp_pilot.jsonl}, records 26--27, commit \texttt{3d354ce}),
+order reached 13 and IBM CP Optimizer reached 12 in 60 seconds, each with
+lower bound 6. IBM CP Optimizer was outside the five-method day-8 pilot.

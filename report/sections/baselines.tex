@@ -47,10 +47,10 @@ permutation and recomputes the maximum cyclic edge distance. A feasible
 incumbent is not reported as optimal unless the solver proves optimality.
 
 \subsection{Constraint programming baselines}
-Both CP engines assign distinct integer positions to vertices. OR-Tools CP-SAT
-introduces an absolute difference and a cyclic distance for each edge, then
-minimizes their maximum. IBM CP Optimizer uses the same distance expression
-and a shared integer upper bound on all edge distances. CP Optimizer starts
-with a validated identity permutation and the degree lower bound; its native
-search receives the remaining wall-clock budget after model construction.
-The runner verifies each returned permutation and recomputes its objective.
+Both engines impose AllDifferent on $p_v\in\{0,\ldots,n-1\}$.
+For each edge let $a=|p_u-p_v|$ and $d=\min(a,n-a)$.
+OR-Tools CP-SAT minimizes the maximum $d$, using objective domain
+$[0,\lfloor n/2\rfloor]$. IBM CP Optimizer minimizes an integer $K$
+subject to $d\le K$, with domain from the degree bound to the validated
+identity bandwidth. Its adapter retains the identity as a fallback.
+Neither implementation supplies a native starting assignment.

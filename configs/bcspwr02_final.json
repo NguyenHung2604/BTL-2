@@ -1,0 +1,26 @@
+{
+  "description": "Smallest eligible candidate with more than 48 vertices",
+  "methods": [
+    "sat_pairwise",
+    "sat_order"
+  ],
+  "planned_methods": [],
+  "time_limit_seconds": 300,
+  "threads": 1,
+  "seed": 0,
+  "max_constraints": 1000000,
+  "max_sat_variables": 1000000,
+  "max_sat_clauses": 1000000,
+  "output": "results/raw/bcspwr02_final.jsonl",
+  "resume": true,
+  "solver_output": false,
+  "instances": [
+    {
+      "path": "data/benchmarks/harwell_boeing/graphs/bcspwr02.json",
+      "source_url": "https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/bcspwr/bcspwr02.html",
+      "raw_path": "data/benchmarks/harwell_boeing/raw/bcspwr02.mtx.gz",
+      "raw_sha256": "9c0295c5061e19529b0c57365442c4437bcded520b09163508c7c80802a1b486",
+      "matrix_type": "MatrixMarket:symmetric"
+    }
+  ]
+}

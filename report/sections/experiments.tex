@@ -16,13 +16,13 @@ $A_{ji}$ is nonzero. Diagonal entries are discarded, duplicate and
 opposite-direction entries are merged, and isolated vertices are retained.
 Consequently, the number of nonzero matrix entries is not generally the number
 of edges in the normalized simple graph. For example, the source reports 50
-entries for JGL009, whereas the normalized graph used here has 32 unique
+stored matrix entries for JGL009~\cite{NISTJGL009}, whereas the normalized graph used here has 32 unique
 undirected edges. We therefore do not copy the paper's matrix-entry counts into
 the normalized manifest.
 
 \begin{table}[t]
 \centering
-\caption{Current verified Harwell--Boeing graph set after normalization.}
+\caption{Three Harwell--Boeing graphs used in the 300-second main benchmark.}
 \label{tab:dataset}
 \begin{tabular}{lrrrrr}
 \hline
@@ -35,13 +35,6 @@ BP 400 & 822 & 4015 & 294 & 0 & 0.0119 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.48\linewidth]{cbmp_circular_layout}
-\caption{Schematic illustration of assigning graph vertices to positions on a cycle. The drawing is explanatory and is not a benchmark instance.}
-\label{fig:cbmp-cycle}
-\end{figure}
-
 JGL009 and BCSSTK01 also occur in Table A.2 of Ren et al.~\cite{Ren2020CBMP}
 and their source records are available from NIST~\cite{NISTJGL009,NISTBCSSTK01}.
 BP 400 is an additional Harwell--Boeing matrix from the SMTAPE set~\cite{NISTBP400}
@@ -50,63 +43,45 @@ an excluded case: after removing its diagonal entries, it has 48 isolated
 vertices and no edges~\cite{NISTBCSSTM01}. The two distributed forms of JGL009
 (plain and gzip-compressed) are the same matrix and are counted once. The
 repository also records the 28 names in
-Table A.2 as candidates; a candidate is added to the selected manifest only
+Table A.2 as candidates; a candidate is included in a benchmark only
 after its raw file, normalized graph, and checksums have been verified.
 
 \subsection{Pilot protocol and observed outcomes}
 The day-8 pilot covers three verified graphs and the five methods available in the original run: pairwise SAT, order SAT, CP-SAT, CPLEX MIP, and
 Gurobi MIP. Each planned run has a 60-second end-to-end wall-clock budget,
-one thread, and seed zero. The run log contains 15 records. The results below
-are pilot observations, not the final full benchmark. In the table, OPT means
+one thread, and seed zero. The original run log contains 15 records. Table~\ref{tab:day8-pilot}
+uses the 60-second CPLEX Studio 22.2 reruns on JGL009 and BCSSTK01
+and the 60-second Gurobi 13.0.3 rerun on all three graphs. In the table, OPT means
 optimality proven, F/TO means a validated feasible incumbent with timeout, and
 Guard means rejected by the preflight size guard before solver startup.
 
-\begin{table}[t]
-\centering
-\small
-\caption{Day-8 pilot outcomes with a 60-second per-run budget.}
-\label{tab:day8-pilot}
-\begin{tabular}{lccccc}
-\hline
-Instance & Pairwise & Order & CP-SAT & CPLEX MIP & Gurobi MIP \\
-\hline
-JGL009 & OPT & OPT & OPT & Lic. err. & Lic. err. \\
-BCSSTK01 & F/TO & F/TO & OPT & Lic. err. & Lic. err. \\
-BP 400 & Guard & Guard & F/TO & Guard & Guard \\
-\hline
-\end{tabular}
-\end{table}
-
-On JGL009, pairwise SAT, order SAT, and CP-SAT prove an optimum of 4 in
-approximately 0.050 s, 0.001 s, and 0.593 s, respectively. On BCSSTK01,
-CP-SAT proves optimality in approximately 46.686 s. Both SAT encodings return
+On JGL009 the identity bandwidth and the degree lower bound both equal 4. Both SAT runs stopped before CNF construction. On BCSSTK01,
+OR-Tools CP-SAT proved bandwidth 12 optimal in 46.686 s (record 8 of \path{results/pilot_day8.jsonl}). In the earlier day-6 pilot, pairwise SAT and CP-SAT each reached 12 with lower bound 6. Both SAT encodings return
 validated feasible solutions but do not prove optimality within 60 seconds.
 On BP 400, CP-SAT returns a feasible solution but does not prove optimality
 within the time limit; the pairwise and order SAT encodings are rejected by
 the preflight guard because their estimated clause counts are approximately
-3.27 billion and 2.99 billion, respectively.
+3.27 billion and 2.99 billion, respectively. The guard adds $mn^2$ possible edge clauses to each assignment count before choosing $K$. This upper estimate includes every ordered position pair; solver time for a guarded run is N/A.
 
-The two MIP backends cannot be compared on the tested machine. On JGL009 and
-BCSSTK01, Gurobi reports that the model is too large for its size-limited
-license, while CPLEX Community Edition reports error 1016 (problem-size
-limits exceeded). These are license-edition restrictions, not infeasibility
-or algorithmic timeouts. On BP 400, both MIP models are rejected before solver
-startup because the estimated formulation contains 2,712,872,904
-constraints. Accordingly, no MIP objective value or runtime is reported.
+The new 60-second CPLEX Studio reruns proved bandwidth 4 optimal on
+JGL009 and returned a validated feasible layout of bandwidth 24 on
+BCSSTK01, with lower bound 6 and timeout. Thus the latter entry has
+bounds $[6,24]$ and carries no optimality proof. The Gurobi academic-license rerun proved bandwidth 4 optimal
+on JGL009. On BCSSTK01 it returned bounds $[6,17]$ at timeout. BP~400 exceeded
+the runner's size guard before either MIP solver started. Both MIP solvers
+also returned validated layouts on the smaller graphs under the separate
+300-second protocol (Table~\ref{tab:six-method-rerun}).
 
-The CPLEX CP method is not part of these 15 runs. CP Optimizer became available in the subsequent six-method run.
-The pilot therefore evaluates five methods, not all six methods in the
-project plan. The 28 Harwell--Boeing candidates are recorded as candidates,
-but the current verified manifest contains only JGL009, BCSSTK01, and BP 400;
-results must be described as a three-instance subset, not as a complete
-28-instance benchmark.
+The five-method pilot excludes IBM CP Optimizer. The separate six-method
+60-second pilot applies a 1 GiB Windows job memory cap. Gurobi exhausted the memory allowance on BCSSTK01 before returning a layout. The independent
+order/CP pilot is identified in the Order Encoding section.
 
 \subsection{Main benchmark protocol}
 The six-method rerun used an AMD Ryzen 5 5600H with 15.4 GiB of
 OS-visible RAM, Windows 11 Home (build 26300), and Python 3.12.3.
 Each instance--method pair had a 300-second target including model construction,
 one requested solver thread, and seed zero where supported. Cleanup and
-native solver return can add elapsed time beyond the target. The separate
+native solver return can add elapsed time beyond the target. The six-method
 60-second pilot limited total Windows job committed memory to 1024 MiB
 for the runner and its children. The 300-second run used model-size guards
 without that memory cap. Some runs overlapped other local work; elapsed
@@ -119,17 +94,3 @@ solver status (optimal, feasible, or no solution) from termination reason
 reported incumbent is independently validated. The five-method, 60-second pilot and the six-method, 300-second run are
 separate experiments. The pilot outcomes are reported above; the six-method
 batch is summarized in the section on MIP and six-method results.
-
-\subsection{Results reporting}
-The plotting script regenerates dataset and run-summary CSV files and uses
-\texttt{cnsplots}~\cite{cnsplots2026} for the figures. It produces only comparisons supported by
-the available records: status counts, a cactus plot of instances with proven
-optimality, a matched pairwise-versus-order runtime scatter plot, and a
-model-size plot when the required measurements exist. Missing measurements
-are left missing rather than imputed. The day-8 pilot outcomes are summarized in Table~\ref{tab:day8-pilot}.
-The separate six-method, 300-second batch contains 18 instance--method
-records (three verified graphs by six methods). Its outcomes are summarized
-in Table~\ref{tab:six-method-rerun}. The generated CSV summaries are
-retained alongside the source JSONL log for reproducibility. Performance
-conclusions remain limited by the three-instance dataset and the license,
-timeout, and model-size limits recorded for individual runs.

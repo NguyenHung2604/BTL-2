@@ -1,0 +1,16 @@
+{
+  "description": "Gurobi academic smoke check",
+  "instances": [
+    "data/toy/path5.json",
+    "data/toy/cycle6.json"
+  ],
+  "methods": [
+    "gurobi_mip"
+  ],
+  "time_limit_seconds": 30,
+  "threads": 1,
+  "seed": 0,
+  "output": "results/raw/gurobi_smoke30_academic.jsonl",
+  "resume": true,
+  "solver_output": false
+}

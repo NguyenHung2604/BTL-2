@@ -22,3 +22,16 @@ def test_zero_budget_retains_a_valid_witness_and_degree_bound():
 def test_negative_budget_is_rejected():
     with pytest.raises(ValueError):
         solve(Graph("empty", 0, ()), -1)
+
+
+def test_cp_engine_on_path_takes_precedence(monkeypatch):
+    from cbmp.solvers import cplex_cp
+
+    def check_engine(model, **options):
+        assert options["execfile"] == "installed/cpoptimizer"
+        raise RuntimeError("verified engine selection")
+
+    monkeypatch.setattr(cplex_cp, "which", lambda name: "installed/cpoptimizer")
+    monkeypatch.setattr(cplex_cp.CpoModel, "solve", check_engine)
+    with pytest.raises(RuntimeError, match="verified engine selection"):
+        solve(Graph("edge", 6, ((0, 3),)), 10)

@@ -1,0 +1,38 @@
+{
+  "description": "Two NIST matrices selected before solving, plus path correctness check",
+  "methods": [
+    "sat_pairwise",
+    "sat_order",
+    "cp_sat",
+    "cplex_mip",
+    "gurobi_mip",
+    "cplex_cp"
+  ],
+  "planned_methods": [],
+  "time_limit_seconds": 10,
+  "threads": 1,
+  "seed": 0,
+  "max_constraints": 1000000,
+  "max_sat_variables": 1000000,
+  "max_sat_clauses": 1000000,
+  "output": "results/raw/supplement_26c9d79.jsonl",
+  "resume": true,
+  "solver_output": false,
+  "instances": [
+    {
+      "path": "data/benchmarks/harwell_boeing/graphs/ibm32.json",
+      "source_url": "https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/smtape/ibm32.html",
+      "raw_path": "data/benchmarks/harwell_boeing/raw/ibm32.mtx.gz",
+      "raw_sha256": "af2234a7a0039790df387ed5a1675607dcfaa67046bc26b311be429ab7dc6efa",
+      "matrix_type": "MatrixMarket:general"
+    },
+    {
+      "path": "data/benchmarks/harwell_boeing/graphs/bcspwr01.json",
+      "source_url": "https://math.nist.gov/MatrixMarket/data/Harwell-Boeing/bcspwr/bcspwr01.html",
+      "raw_path": "data/benchmarks/harwell_boeing/raw/bcspwr01.mtx.gz",
+      "raw_sha256": "6006f0ec5241cea77352113417adefe929f077dc615eaf184fc109729247cf8a",
+      "matrix_type": "MatrixMarket:symmetric"
+    },
+    "data/toy/scrambled_path8.json"
+  ]
+}
