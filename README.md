@@ -123,4 +123,4 @@ The separate 300-second SAT comparison on BCSPWR02 uses
 From the repo root, use the benchmark runner with an unused output path
 to repeat the measurement. The report script reads the archived log.
 
-The original 18 main records remain in main_18.jsonl. The latest report view, main_latest.jsonl, substitutes only the two matching 300-second CPLEX Studio runs. The supplement substitutes the two 10-second CPLEX Studio runs on IBM32 and BCSPWR01.
+The original 18 main records remain in main_18.jsonl. The latest report view, main_latest.jsonl, uses the two matching 300-second CPLEX Studio runs and the three Gurobi rerun records. The supplement uses CPLEX Studio reruns on IBM32 and BCSPWR01 and Gurobi reruns on all three graphs at 10 seconds each.

@@ -1,0 +1,14 @@
+{
+  "instances": [
+    "data/toy/cycle6.json",
+    "data/toy/path5.json"
+  ],
+  "methods": [
+    "gurobi_mip"
+  ],
+  "time_limit_seconds": 10,
+  "planned_methods": [],
+  "output": "results/raw/gurobi_smoke10_academic.jsonl",
+  "threads": 1,
+  "seed": 0
+}

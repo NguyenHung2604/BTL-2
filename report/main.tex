@@ -42,7 +42,7 @@ with 116,784 for pairwise. Pairwise reached bandwidth 12 and order reached
 13; both runs retained a lower bound of 6. A separate five-method pilot
 certified 12 with OR-Tools CP-SAT in 46.686 seconds. In a 10-second
 supplement on two further matrices, both SAT methods certified 4 on
-BCSPWR01 and found layouts of bandwidth 9 on IBM32. A separate 300-second comparison extends the SAT measurements to BCSPWR02 (49 vertices).
+BCSPWR01 and found layouts of bandwidth 9 on IBM32. A separate 300-second comparison on BCSPWR02 (49 vertices) includes both SAT encodings and Gurobi MIP.
 \end{abstract}
 \begin{keywords}
 Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programming
@@ -55,6 +55,21 @@ Cyclic bandwidth \sep SAT encoding \sep graph labeling \sep constraint programmi
 \input{sections/order}
 \input{sections/baselines}
 \input{sections/experiments}
+\begin{table}[t]
+\centering
+\small
+\caption{Day-8 pilot, 60 seconds per run. The Gurobi column uses academic-license reruns. The two smaller CPLEX entries use Studio 22.2 reruns. Table~\ref{tab:six-method-rerun} reports the separate 300-second results.}
+\label{tab:day8-pilot}
+\begin{tabular}{lccccc}
+\hline
+Instance & Pairwise & Order & CP-SAT & CPLEX MIP & Gurobi MIP \\
+\hline
+JGL009 & OPT & OPT & OPT & OPT & OPT \\
+BCSSTK01 & F/TO & F/TO & OPT & F/TO & F/TO \\
+BP 400 & Guard & Guard & F/TO & Guard & Guard \\
+\hline
+\end{tabular}
+\end{table}
 \input{sections/ninh_hung_results}
 
 \input{sections/six_method_table}
@@ -67,10 +82,11 @@ below one million clauses for both encodings. We ran six methods sequentially
 on the same normalized inputs with a 10-second target per run, one thread
 and seed zero where supported. Both SAT histories contain solver decisions
 on both graphs. Table~\ref{tab:supplement} incorporates the IBM CP Optimizer
-engine-path retries and the two IBM CPLEX MIP Studio reruns at the same
+engine-path retries, two IBM CPLEX MIP Studio reruns, and three Gurobi academic-license reruns at the same
 10-second budget.
 
 \begin{samepage}
+Gurobi also proved bandwidth 1 on both smoke graphs, \texttt{path5} and \texttt{cycle6}, at both 10 and 30 seconds per graph.
 For the correctness check, the seven edges join consecutive vertices of
 the sequence $(0,4,1,5,2,6,3,7)$. The identity bandwidth is 4. Placing
 the vertices in sequence gives bandwidth 1, the smallest possible value
@@ -92,7 +108,7 @@ fit the existing guard. The NIST BCSPWR02 matrix yields 49 vertices,
 59 undirected edges and maximum degree 6. The identity layout has
 bandwidth 24, so the first threshold is 23 and the initial lower bound
 is 3. Pairwise improved the upper bound to 7 and order to 7. Both retained the degree lower bound at timeout. The encodings ran sequentially for up to 300 seconds each using
-the main SAT settings. Table~\ref{tab:larger} reports this separate run.
+the main SAT settings. Table~\ref{tab:larger} reports the two SAT runs. With the same 300-second budget, Gurobi returned a validated layout of bandwidth 7 and a lower bound of 3 at timeout.
 \input{sections/bcspwr02_table}
 \input{sections/discussion}
 \input{sections/conclusion}
@@ -129,7 +145,13 @@ is \path{six_method_benchmark_day8_pilot.jsonl}. The original main batch compris
 The same file also contains a later environment run at \texttt{ba35219}
 with dependency errors. The supplement uses \path{supplement_26c9d79.jsonl}
 and \path{supplement_cp_retry.jsonl}; the retry includes the local engine-path
-fix. The separate BCSPWR02 log is \path{results/raw/bcspwr02_final.jsonl}, with settings in \path{configs/bcspwr02_final.json}. The 300-second CPLEX Studio results are in \path{results/raw/cplex_studio_main.jsonl}. The 10-second IBM32 run is in \path{results/raw/cplex_studio_supplement.jsonl}; the BCSPWR01 run is in \path{results/raw/cplex_studio_check_20261125_104852.jsonl}. The ablation log is \path{week8_ablation.jsonl}.
+fix. The separate BCSPWR02 log is \path{results/raw/bcspwr02_final.jsonl}, with settings in \path{configs/bcspwr02_final.json}. The 300-second CPLEX Studio results are in \path{results/raw/cplex_studio_main.jsonl}. The 10-second IBM32 run is in \path{results/raw/cplex_studio_supplement.jsonl}; the BCSPWR01 run is in \path{results/raw/cplex_studio_check_20261125_104852.jsonl}. The Gurobi configurations in \path{configs/} and logs in
+\path{results/raw/} share the filename stems
+\path{gurobi_smoke10_academic}, \path{gurobi_smoke30_academic}, \path{gurobi_supplement10_academic},
+\path{gurobi_pilot60_full_academic}, \path{gurobi_pilot60_cap_academic},
+\path{gurobi_main300_academic}, and \path{gurobi_bcspwr02_300_academic}.
+The capped pilot uses the runner option \texttt{--windows-job-memory-mib 1024}.
+The ablation log is \path{week8_ablation.jsonl}.
 From the repository root, install the plotting extra with
 \mbox{\texttt{python -m pip install ".[plots]"}} and run
 \begin{verbatim}

@@ -1,0 +1,17 @@
+{
+  "description": "Gurobi academic rerun: pilot60_full",
+  "manifest": "data/manifest.csv",
+  "methods": [
+    "gurobi_mip"
+  ],
+  "planned_methods": [],
+  "time_limit_seconds": 60,
+  "threads": 1,
+  "seed": 0,
+  "max_constraints": 1000000,
+  "max_sat_variables": 1000000,
+  "max_sat_clauses": 1000000,
+  "output": "results/raw/gurobi_pilot60_full_academic.jsonl",
+  "resume": true,
+  "solver_output": false
+}

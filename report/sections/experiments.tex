@@ -49,26 +49,11 @@ after its raw file, normalized graph, and checksums have been verified.
 \subsection{Pilot protocol and observed outcomes}
 The day-8 pilot covers three verified graphs and the five methods available in the original run: pairwise SAT, order SAT, CP-SAT, CPLEX MIP, and
 Gurobi MIP. Each planned run has a 60-second end-to-end wall-clock budget,
-one thread, and seed zero. The run log contains 15 records. The results below
-are pilot observations, not the final full benchmark. In the table, OPT means
+one thread, and seed zero. The original run log contains 15 records. Table~\ref{tab:day8-pilot}
+uses the 60-second CPLEX Studio 22.2 reruns on JGL009 and BCSSTK01
+and the 60-second Gurobi 13.0.3 rerun on all three graphs. In the table, OPT means
 optimality proven, F/TO means a validated feasible incumbent with timeout, and
 Guard means rejected by the preflight size guard before solver startup.
-
-\begin{table}[t]
-\centering
-\small
-\caption{Historical day-8 pilot (60 seconds per run). ``Lic. err.'' marks runs that exceeded the license limits in effect during this pilot. Table~\ref{tab:six-method-rerun} reports subsequent 300-second results for both MIP solvers on JGL009 and BCSSTK01.}
-\label{tab:day8-pilot}
-\begin{tabular}{lccccc}
-\hline
-Instance & Pairwise & Order & CP-SAT & CPLEX MIP & Gurobi MIP \\
-\hline
-JGL009 & OPT & OPT & OPT & Lic. err. & Lic. err. \\
-BCSSTK01 & F/TO & F/TO & OPT & Lic. err. & Lic. err. \\
-BP 400 & Guard & Guard & F/TO & Guard & Guard \\
-\hline
-\end{tabular}
-\end{table}
 
 On JGL009 the identity bandwidth and the degree lower bound both equal 4. Both SAT runs stopped before CNF construction. On BCSSTK01,
 OR-Tools CP-SAT proved bandwidth 12 optimal in 46.686 s (record 8 of \path{results/pilot_day8.jsonl}). In the earlier day-6 pilot, pairwise SAT and CP-SAT each reached 12 with lower bound 6. Both SAT encodings return
@@ -78,15 +63,17 @@ within the time limit; the pairwise and order SAT encodings are rejected by
 the preflight guard because their estimated clause counts are approximately
 3.27 billion and 2.99 billion, respectively. The guard adds $mn^2$ possible edge clauses to each assignment count before choosing $K$. This upper estimate includes every ordered position pair; solver time for a guarded run is N/A.
 
-In the historical 60-second pilot, the installed Gurobi and CPLEX
-editions rejected JGL009 and BCSSTK01 because the models exceeded their
-license limits (Table~\ref{tab:day8-pilot}). Both MIP solvers subsequently
-returned validated layouts on both graphs under the 300-second protocol
-(Table~\ref{tab:six-method-rerun}). BP~400 exceeded the runner's size
-guard before either MIP solver started.
+The new 60-second CPLEX Studio reruns proved bandwidth 4 optimal on
+JGL009 and returned a validated feasible layout of bandwidth 24 on
+BCSSTK01, with lower bound 6 and timeout. Thus the latter entry has
+bounds $[6,24]$ and carries no optimality proof. The Gurobi academic-license rerun proved bandwidth 4 optimal
+on JGL009. On BCSSTK01 it returned bounds $[6,17]$ at timeout. BP~400 exceeded
+the runner's size guard before either MIP solver started. Both MIP solvers
+also returned validated layouts on the smaller graphs under the separate
+300-second protocol (Table~\ref{tab:six-method-rerun}).
 
 The five-method pilot excludes IBM CP Optimizer. The separate six-method
-60-second pilot applies a 1 GiB Windows job memory cap. The independent
+60-second pilot applies a 1 GiB Windows job memory cap. Gurobi exhausted the memory allowance on BCSSTK01 before returning a layout. The independent
 order/CP pilot is identified in the Order Encoding section.
 
 \subsection{Main benchmark protocol}

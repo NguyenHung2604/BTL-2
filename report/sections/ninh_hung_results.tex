@@ -35,12 +35,12 @@ or infeasibility proof.
 
 \subsection{Six-method benchmark outcomes}
 The consolidated table contains 18 method--instance entries. Fourteen
-have validated layouts, including the two CPLEX Studio reruns. The
+have validated layouts, including two CPLEX Studio layouts and two Gurobi layouts from the reruns. The
 remaining four were stopped by the BP 400 size guards.
 Table~\ref{tab:six-method-rerun} uses a 300-second budget and one thread
-per entry. Sixteen entries come from the original batch at commit
+per entry. Thirteen entries come from the original batch at commit
 \texttt{9df7be6}. The JGL009 and BCSSTK01 entries for IBM CPLEX MIP
-come from Studio 22.2 reruns with the same formulation and budget.
+come from Studio 22.2 reruns. The three Gurobi entries come from reruns with the same formulation, budget, and size guard.
 
 All six methods proved 4 on JGL009. On BCSSTK01, pairwise SAT and both CP
 engines reached 12, order SAT reached 13, Gurobi MIP reached 15, and CPLEX
@@ -69,4 +69,4 @@ Both MIP solvers produced validated layouts on four matrix graphs:
 JGL009, BCSSTK01, IBM32 and BCSPWR01. Only JGL009 yielded an optimality
 proof from both. The other three comparisons measure the layouts and
 bounds reached within each budget. BP~400 provides a model-size estimate
-only, and the separate BCSPWR02 experiment evaluated the SAT encodings.
+only, and the BCSPWR02 experiment compares both SAT encodings with Gurobi MIP.

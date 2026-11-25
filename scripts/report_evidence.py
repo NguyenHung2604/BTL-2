@@ -7,8 +7,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from cbmp.graph import load_graph
-from cbmp.manifest import graph_statistics, load_manifest
-from cbmp.validator import validated_bandwidth
+from cbmp.manifest import graph_statistics, load_manifest, normalized_graph_sha256
+from cbmp.validator import certify_record, validated_bandwidth
 
 MAIN = "9df7be63e3a7c843c8b1eae836ef4fe3c440351d"
 OUT = ROOT / "results/summary/report_audit"
@@ -20,6 +20,22 @@ def save_csv(name, rows):
         writer = csv.DictWriter(stream, fieldnames=rows[0].keys())
         writer.writeheader()
         writer.writerows(rows)
+
+
+def gurobi_records(protocol, budget, names):
+    source = ROOT / "results/raw" / f"gurobi_{protocol}_academic.jsonl"
+    rows = {}
+    for line in source.read_text().splitlines():
+        r = json.loads(line)
+        name = r["graph_id"]
+        assert name not in rows and r["method"] == "gurobi_mip"
+        assert r["time_limit"] == budget and r["threads"] == 1 and r["seed"] == 0
+        graph = load_graph(ROOT / r["source_path"])
+        assert r["graph_checksum"] == normalized_graph_sha256(graph.n, graph.edges)
+        certify_record(r, graph.n, graph.edges)
+        rows[name] = r
+    assert set(rows) == set(names)
+    return rows
 
 
 def supplemental_table():
@@ -54,8 +70,12 @@ def supplemental_table():
         degree = graph_statistics(graph.n, graph.edges)["max_degree"]
         lower = max((degree+1)//2, r["lower_bound"])
         cells["cplex_mip", name] = str(value) if r["optimality_proven"] else f"[{lower:g},{value}]"
+    retries = gurobi_records("supplement10", 10, names)
+    for name, r in retries.items():
+        cells["gurobi_mip", name] = (str(r["incumbent"]) if r["optimality_proven"]
+                                     else f"[{r['lower_bound']:g},{r['incumbent']}]")
     rows = [r"\begin{table}[htbp]\centering\small",
-            r"\caption{Supplement, 10 seconds per graph and method. Single values are proven optima; intervals are validated bounds at timeout. The IBM CPLEX MIP entries for IBM32 and BCSPWR01 use the Studio reruns. IBM CP Optimizer uses the separate engine-path retry.}",
+            r"\caption{Supplement, 10 seconds per graph and method. Single values are proven optima; intervals are validated bounds at timeout. The IBM CPLEX MIP entries for IBM32 and BCSPWR01 use the Studio reruns. The Gurobi row uses the academic-license reruns. IBM CP Optimizer uses the separate engine-path retry.}",
             r"\label{tab:supplement}\begin{tabular}{lccc}\hline",
             r"Method & IBM32 & BCSPWR01 & Scrambled path\\\hline"]
     for method,label in methods.items():
@@ -135,6 +155,12 @@ def main():
         assert main_rows[i]["termination_reason"] == "license_error"
         assert main_rows[i]["graph_checksum"] == retry["graph_checksum"]
         main_rows[i] = retry
+    gurobi = gurobi_records("main300", 300, [row["instance"] for row in dataset])
+    for i, r in enumerate(main_rows):
+        if r["method"] == "gurobi_mip":
+            retry = gurobi[r["graph_id"]]
+            assert r["graph_checksum"] == retry["graph_checksum"]
+            main_rows[i] = retry
     (OUT/"main_latest.jsonl").write_text("".join(json.dumps(r)+"\n" for r in main_rows), encoding="utf-8")
     rows = []
     for k in sorted(set.intersection(*(set(h) for h in histories.values())), reverse=True):

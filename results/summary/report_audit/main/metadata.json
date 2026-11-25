@@ -1,6 +1,6 @@
 {
   "input": "results/summary/report_audit/main_latest.jsonl",
-  "input_sha256": "ee4d1be72e8b346abd6f1b901d48acaf4c4b7d784bb4e75ecea59ff9fe5cfdfb",
+  "input_sha256": "f60c19964c1056782518d2af42c9a12111b53b98b3b612e89e0218362abdf944",
   "manifest": "data/manifest.csv",
   "witnesses_rechecked": true,
   "num_runs": 18,
